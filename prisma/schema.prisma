@@ -8,12 +8,68 @@ datasource db {
 
 model User {
   id BigInt @id @default(autoincrement())
+
+  fullName String @db.VarChar(255)
+  email String @db.VarChar(255)
+  password String @db.VarChar(255)
+
+  createAt DateTime @default(now())
+  updatedAt DateTime @updatedAt 
+  deletedAt DateTime?
+
+  member Member[]
 }
 
 model School {
   id BigInt @id @default(autoincrement())
+  name        String  @db.VarChar(255)
+  type        SchoolType
+  board       SchoolBoard
+  city        String  @db.VarChar(100)
+  state       String  @db.VarChar(100)
+  website     String? @db.VarChar(255)
+  udiseNumber String  @unique @db.VarChar(50)
+
+  isVerified Boolean @default(false)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  member Member[]
 }
 
 model Member {
   id BigInt @id @default(autoincrement())
+  role MemberRole
+
+  UserId BigInt 
+  SchoolId BigInt 
+
+  user User @relation(fields:[UserId],references:[id],onDelete:Cascade)
+  school School @relation(fields:[SchoolId],references:[id],onDelete:Cascade)
+  
+  createAt DateTime @default(now())
+  updatedAt DateTime @updatedAt 
+  deletedAt DateTime?
+}
+
+enum MemberRole{
+  ADMIN
+  STAFF
+  TEACHER
+  STUDENT
+}
+
+enum SchoolType {
+  PUBLIC
+  PRIVATE
+  OTHER
+}
+
+enum SchoolBoard {
+  CBSE
+  ICSE
+  STATE
+  OTHER
 }
