@@ -49,4 +49,28 @@ export class AuthController {
       data: result,
     });
   });
+
+  static login = asyncHandler(async (req: Request, res: Response) => {
+    const { email, password } = req.body;
+
+    const result = await AuthService.login({
+      email,
+      password,
+    });
+
+    res.cookie("token", result.token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: result.message,
+      data: {
+        user: result.user,
+      },
+    });
+  });
 }

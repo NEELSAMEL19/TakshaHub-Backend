@@ -1,4 +1,5 @@
 import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 import { normalizeEmail } from "./auth.helpers.js";
 import { AppError } from "../common/middlewares/AppError.js";
 import env from "../../src/config/env.js";
@@ -7,6 +8,7 @@ import crypto from "crypto";
 import { MemberRole } from "@prisma/client";
 import { redis } from "../config/redis.js";
 import { sendVerificationEmail } from "../common/utils/sendVerificationEmail.js";
+import { serializeBigInt } from "../common/utils/utils.js";
 
 const SALT_ROUNDS = Number(env.BCRYPT_ROUNDS ?? "10");
 
@@ -85,7 +87,7 @@ export class AuthService {
     };
   }
 
-    static async verifyOtp(data: any) {
+  static async verifyOtp(data: any) {
     const email = normalizeEmail(data.email);
     const otp = data.otp;
 
@@ -216,5 +218,51 @@ export class AuthService {
     await sendVerificationEmail(user.email, otp);
 
     return { message: "OTP resent successfully" };
+  }
+
+  static async login(data: any) {
+    const email = normalizeEmail(data.email);
+    const password = data.password;
+
+    // 1️⃣ Check if user exists
+    const user = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (!user) {
+      throw new AppError("Invalid email or password", 401);
+    }
+
+    // 2️⃣ Check if user is verified
+    if (!user.isVerified) {
+      throw new AppError("Please verify your email first", 403);
+    }
+
+    // 3️⃣ Compare passwords
+    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+
+    if (!isPasswordValid) {
+      throw new AppError("Invalid email or password", 401);
+    }
+
+    // 4️⃣ Generate JWT token
+    const tokenPayload = {
+      id: user.id.toString(),
+      email: user.email,
+      fullName: user.fullName,
+    };
+
+    const token = jwt.sign(tokenPayload, env.JWT_ACCESS_SECRET, {expiresIn:"7d"});
+
+    return serializeBigInt({
+      message: "Login successful",
+      user: {
+        id: user.id,
+        fullName: user.fullName,
+        email: user.email,
+        phoneNumber: user.phoneNumber,
+      },
+      token,
+    });
   }
 }
