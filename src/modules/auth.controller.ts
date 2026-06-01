@@ -20,4 +20,33 @@ export class AuthController {
       data: result,
     });
   });
+
+  static verifyOtp = asyncHandler(async (req: Request, res: Response) => {
+    const { email, otp } = req.body;
+
+    const result = await AuthService.verifyOtp({
+      email,
+      otp,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: result.message,
+      data: result,
+    });
+  });
+
+  static resendOtp = asyncHandler(async (req: Request, res: Response) => {
+    const { email } = req.body;
+
+    const result = await AuthService.resendOtp({
+      email,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: result.message,
+      data: result,
+    });
+  });
 }
