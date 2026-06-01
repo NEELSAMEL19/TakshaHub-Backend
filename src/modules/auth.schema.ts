@@ -32,3 +32,30 @@ export const registerSchema = z.object({
     }),
   }),
 });
+
+export const verifyOtpSchema = z.object({
+  body: z.object({
+    email: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .email("Invalid email address"),
+
+    otp: z
+      .string()
+      .trim()
+      .length(6, "OTP must be 6 digits")
+      .regex(/^\d+$/, "OTP must contain only numbers"),
+  }),
+});
+
+
+export const resendOtpSchema = z.object({
+  body: z.object({
+    email: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .email("Invalid email address"),
+  }),
+});
