@@ -16,8 +16,12 @@
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
+    "@types/nodemailer": "^8.0.0",
+    "@upstash/redis": "^1.38.0",
+    "bcryptjs": "^3.0.3",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "nodemailer": "^8.0.10",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -25,6 +29,8 @@
     "@types/node": "^25.9.1",
     "prisma": "^7.8.0",
     "tsx": "^4.22.3",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "winston": "^3.19.0",
+    "winston-daily-rotate-file": "^5.0.0"
   }
 }
