@@ -6,7 +6,7 @@ import env from "../../config/env.js";
 // Extend Express Request to include user data
 declare global { namespace Express { interface Request {
       user?: {
-        id: bigint;
+        id: string;
         email: string;
         fullName: string;
       };
@@ -29,9 +29,7 @@ export const authMiddleware = (
 
     // 2️⃣ Verify token
     const decoded = jwt.verify(token, env.JWT_ACCESS_SECRET) as {
-      id: bigint;
-      email: string;
-      fullName: string;
+      id: string;
     };
 
     // 3️⃣ Attach user to request
@@ -58,11 +56,8 @@ export const optionalAuthMiddleware = (
     const token = req.cookies.token;
 
     if (token) {
-      const decoded = jwt.verify(token, env.JWT_ACCESS_SECRET) as {
-        id: bigint;
-        email: string;
-        fullName: string;
-      };
+      const decoded = jwt.verify(token, env.JWT_ACCESS_SECRET) as {id: string}
+
       req.user = decoded;
     }
 
