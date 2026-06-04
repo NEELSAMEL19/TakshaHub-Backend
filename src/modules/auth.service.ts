@@ -13,6 +13,63 @@ import { serializeBigInt } from "../common/utils/utils.js";
 const SALT_ROUNDS = Number(env.BCRYPT_ROUNDS ?? "10");
 
 export class AuthService {
+  private static async getUserResponse(userId: bigint) {
+    const user = await prisma.user.findFirst({
+      where: {
+        id: userId,
+        deletedAt: null,
+      },
+      include: {
+        member: {
+          where: { deletedAt: null },
+          take: 1,
+          include: {
+            school: true,
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      throw new AppError("User not found", 404);
+    }
+
+    const school = user.member[0]?.school;
+
+    if (!school) {
+      throw new AppError("School not found for user", 404);
+    }
+
+    return serializeBigInt({
+      id: user.id,
+      fullName: user.fullName,
+      email: user.email,
+      phoneNumber: user.phoneNumber,
+      isVerified: user.isVerified,
+      school: {
+        name: school.name,
+        type: school.type,
+        board: school.board,
+        city: school.city,
+        state: school.state,
+        website: school.website,
+        udiseNumber: school.udiseNumber,
+      },
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    });
+  }
+
+  private static createToken(user: { id: bigint;}) {
+    return jwt.sign(
+      {
+        id: user.id.toString(),
+      },
+      env.JWT_ACCESS_SECRET,
+      { expiresIn: "7d" }
+    );
+  }
+
   static async register(data: any) {
     const email = normalizeEmail(data.email);
 
@@ -162,7 +219,7 @@ export class AuthService {
     }
 
     // 5️⃣ Verify user
-    await prisma.user.update({
+    const verifiedUser = await prisma.user.update({
       where: { email: email },
       data: { isVerified: true },
     });
@@ -170,7 +227,15 @@ export class AuthService {
     // 6️⃣ Cleanup
     await redis.del(otpKey);
     await redis.del(`verify:attempts:${email}`);
-    return { message: "Email verified successfully" };
+
+    const token = this.createToken(verifiedUser);
+    const userResponse = await this.getUserResponse(verifiedUser.id);
+
+    return {
+      message: "Email verified successfully",
+      user: userResponse,
+      token,
+    };
   }
 
   static async resendOtp(data: any) {
@@ -246,23 +311,17 @@ export class AuthService {
     }
 
     // 4️⃣ Generate JWT token
-    const tokenPayload = {
-      id: user.id.toString(),
-      email: user.email,
-      fullName: user.fullName,
-    };
-
-    const token = jwt.sign(tokenPayload, env.JWT_ACCESS_SECRET, {expiresIn:"7d"});
+    const token = this.createToken(user);
+    const userResponse = await this.getUserResponse(user.id);
 
     return serializeBigInt({
       message: "Login successful",
-      user: {
-        id: user.id,
-        fullName: user.fullName,
-        email: user.email,
-        phoneNumber: user.phoneNumber,
-      },
+      user: userResponse,
       token,
     });
+  }
+
+  static async getCurrentUser(userId: string) {
+    return this.getUserResponse(BigInt(userId));
   }
 }

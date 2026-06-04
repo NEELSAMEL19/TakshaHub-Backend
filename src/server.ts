@@ -1,6 +1,6 @@
 import app from "./app";
-
-const PORT = 3000
+import env from "./config/env";
+const PORT = Number(env.PORT ?? 3030) 
 const HOST = "0.0.0.0"
 
 app.listen(PORT,HOST,()=>{
