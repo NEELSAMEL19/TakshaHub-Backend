@@ -1,6 +1,9 @@
 {
   "name": "TaskShahub",
   "version": "1.0.0",
+   "engines": {
+    "node": "22.x"
+  },
   "description": "TaskShahub backend",
   "main": "dist/server.js",
   "scripts": {
