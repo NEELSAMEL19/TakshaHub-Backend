@@ -3,7 +3,7 @@ import jwt from "jsonwebtoken";
 import { normalizeEmail } from "./auth.helpers.js";
 import { AppError } from "../common/middlewares/AppError.js";
 import env from "../../src/config/env.js";
-import prisma from "../config/prisma";
+import prisma from "../config/prisma.js";
 import crypto from "crypto";
 import { MemberRole } from "@prisma/client";
 import { redis } from "../config/redis.js";

@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
-import { asyncHandler } from "../common/utils/utils";
-import { AuthService } from "./auth.service";
+import { asyncHandler } from "../common/utils/utils.js";
+import { AuthService } from "./auth.service.js";
 
 const cookieOptions = {
   httpOnly: true,
