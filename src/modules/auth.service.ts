@@ -2,7 +2,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { normalizeEmail } from "./auth.helpers.js";
 import { AppError } from "../common/middlewares/AppError.js";
-import env from "../config/env.js";
+import env from "../config/env";
 import prisma from "../config/prisma.js";
 import crypto from "crypto";
 import { MemberRole } from "@prisma/client";
