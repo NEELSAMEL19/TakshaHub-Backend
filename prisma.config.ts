@@ -1,16 +1,5 @@
+import "dotenv/config"
 import { defineConfig } from "prisma/config";
-
-try {
-  process.loadEnvFile?.();
-} catch {
-  // Render provides DATABASE_URL through environment variables.
-}
-
-const dataUrl = process.env.DATABASE_URL;
-
-if (!dataUrl) {
-  throw new Error("DATABASE_URL is missing");
-}
 
 export default defineConfig({
   schema: "prisma/schema.prisma",
@@ -18,6 +7,6 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    url: dataUrl,
+    url: process.env.DATABASE_URL!,
   },
 });
