@@ -1,0 +1,1 @@
+{"version":3,"file":"mail.service.js","sourceRoot":"","sources":["../../src/config/mail.service.ts"],"names":[],"mappings":"AAAA,OAAO,UAAU,MAAM,YAAY,CAAC;AACpC,OAAO,GAAG,MAAM,UAAU,CAAC;AAE3B,MAAM,CAAC,MAAM,WAAW,GAAG,UAAU,CAAC,eAAe,CAAC;IACpD,OAAO,EAAE,OAAO;IAChB,IAAI,EAAE;QACJ,IAAI,EAAE,GAAG,CAAC,SAAS;QACnB,IAAI,EAAE,GAAG,CAAC,aAAa;KACxB;CACF,CAAC,CAAC"}
