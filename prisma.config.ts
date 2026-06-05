@@ -1,7 +1,10 @@
-import dotenv from "dotenv";
-dotenv.config();
-
 import { defineConfig } from "prisma/config";
+
+try {
+  process.loadEnvFile?.();
+} catch {
+  // Render provides DATABASE_URL through environment variables.
+}
 
 const dataUrl = process.env.DATABASE_URL;
 
