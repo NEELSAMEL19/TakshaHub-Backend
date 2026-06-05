@@ -1,3 +1,6 @@
+import dotenv from "dotenv";
+dotenv.config();
+
 import app from "./app";
 import env from "./config/env.js";
 const PORT = Number(env.PORT ?? 3030) 
