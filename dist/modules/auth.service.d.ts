@@ -7,7 +7,7 @@ export declare class AuthService {
     static verifyOtp(data: any): Promise<{
         message: string;
         user: any;
-        token: string;
+        token: any;
     }>;
     static resendOtp(data: any): Promise<{
         message: string;

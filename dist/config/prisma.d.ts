@@ -1,6 +1,3 @@
-import { PrismaClient } from "@prisma/client";
-declare const prisma: PrismaClient<{
-    adapter: any;
-}, never, import("@prisma/client/runtime/client").DefaultArgs>;
+declare const prisma: any;
 export default prisma;
 //# sourceMappingURL=prisma.d.ts.map
