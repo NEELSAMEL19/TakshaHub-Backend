@@ -60,30 +60,37 @@ export class AuthService {
     });
   }
 
-  private static createToken(user: { id: bigint;}) {
+  private static createToken(user: { id: bigint }) {
     return jwt.sign(
       {
         id: user.id.toString(),
       },
       validate.JWT_ACCESS_SECRET,
-      { expiresIn: "7d" }
+      { expiresIn: "7d" },
     );
   }
 
   static async register(data: any) {
     const email = normalizeEmail(data.email);
 
+    console.log("[REGISTER] Started", email);
+
     // 1️⃣ Check existing user
     let user = await prisma.user.findUnique({
       where: { email },
     });
 
+    console.log("[REGISTER] User lookup complete");
+
     if (user?.isVerified) {
+      console.log("[REGISTER] User already verified");
       throw new AppError("Email already exists", 409);
     }
 
     // 2️⃣ Create user if not exists
     if (!user) {
+      console.log("[REGISTER] Creating user");
+
       const passwordHash = await bcrypt.hash(data.password, SALT_ROUNDS);
 
       user = await prisma.user.create({
@@ -95,6 +102,8 @@ export class AuthService {
           isVerified: false,
         },
       });
+
+      console.log("[REGISTER] User created", user.id);
 
       const school = await prisma.school.create({
         data: {
@@ -108,6 +117,8 @@ export class AuthService {
         },
       });
 
+      console.log("[REGISTER] School created", school.id);
+
       await prisma.member.create({
         data: {
           userId: user.id,
@@ -115,9 +126,13 @@ export class AuthService {
           role: MemberRole.ADMIN,
         },
       });
+
+      console.log("[REGISTER] Member created");
     }
 
     // 3️⃣ OTP
+    console.log("[REGISTER] Generating OTP");
+
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
     const otpKey = `verify:otp:${email}`;
@@ -128,6 +143,8 @@ export class AuthService {
       .digest("hex");
 
     // 4️⃣ Store OTP
+    console.log("[REGISTER] Saving OTP to Redis");
+
     const otpData = {
       hash: otpHash,
       attempts: 0,
@@ -136,8 +153,14 @@ export class AuthService {
 
     await redis.set(otpKey, otpData, { ex: 600 });
 
+    console.log("[REGISTER] OTP saved");
+
     // 5️⃣ Send email
+    console.log("[REGISTER] Sending email");
+
     await sendVerificationEmail(email, otp);
+
+    console.log("[REGISTER] Email sent successfully");
 
     return {
       message: "OTP sent successfully. Please verify your email.",
