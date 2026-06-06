@@ -2,7 +2,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { normalizeEmail } from "./auth.helpers.js";
 import { AppError } from "../common/middlewares/AppError.js";
-import env from "../config/env.js";
+import validate from "../config/validate.js";
 import prisma from "../config/prisma.js";
 import crypto from "crypto";
 import { MemberRole } from "@prisma/client";
@@ -10,7 +10,7 @@ import { redis } from "../config/redis.js";
 import { sendVerificationEmail } from "../common/utils/sendVerificationEmail.js";
 import { serializeBigInt } from "../common/utils/utils.js";
 
-const SALT_ROUNDS = Number(env.BCRYPT_ROUNDS ?? "10");
+const SALT_ROUNDS = Number(validate.BCRYPT_ROUNDS ?? "10");
 
 export class AuthService {
   private static async getUserResponse(userId: bigint) {
@@ -65,7 +65,7 @@ export class AuthService {
       {
         id: user.id.toString(),
       },
-      env.JWT_ACCESS_SECRET,
+      validate.JWT_ACCESS_SECRET,
       { expiresIn: "7d" }
     );
   }
@@ -123,7 +123,7 @@ export class AuthService {
     const otpKey = `verify:otp:${email}`;
 
     const otpHash = crypto
-      .createHmac("sha256", env.OTP_SECRET)
+      .createHmac("sha256", validate.OTP_SECRET)
       .update(`${email}:${otp}`)
       .digest("hex");
 
@@ -148,7 +148,7 @@ export class AuthService {
     const email = normalizeEmail(data.email);
     const otp = data.otp;
 
-    const OTP_SECRET = env.OTP_SECRET;
+    const OTP_SECRET = validate.OTP_SECRET;
     if (!OTP_SECRET) throw new Error("OTP_SECRET missing");
 
     // 1️⃣ Get user
@@ -241,8 +241,8 @@ export class AuthService {
   static async resendOtp(data: any) {
     const email = normalizeEmail(data.email);
 
-    if (!env.OTP_SECRET) {
-      throw new Error("OTP_SECRET is missing in environment variables");
+    if (!validate.OTP_SECRET) {
+      throw new Error("OTP_SECRET is missing in validateironment variables");
     }
 
     const user = await prisma.user.findUnique({
@@ -266,7 +266,7 @@ export class AuthService {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
     const hash = crypto
-      .createHmac("sha256", env.OTP_SECRET)
+      .createHmac("sha256", validate.OTP_SECRET)
       .update(`${email}:${otp}`)
       .digest("hex");
 

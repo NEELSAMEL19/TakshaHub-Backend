@@ -1,14 +1,14 @@
-import expres from "express"
+import express from "express"
 import type { Application, Request, Response } from "express"
 import cookieParser from "cookie-parser"
 import errorHandler from "./common/middlewares/errorHandler.js"
 import router from "./routes.js"
-import env from "./config/env.js"
+import validate from "./config/validate.js"
 
-const app:Application = expres()
+const app:Application = express()
 
 app.use((req, res, next) => {
-    const allowedOrigin = env.CORS_ORIGIN
+    const allowedOrigin = validate.CORS_ORIGIN
 
     if (allowedOrigin) {
         res.header("Access-Control-Allow-Origin", allowedOrigin)
@@ -24,7 +24,7 @@ app.use((req, res, next) => {
     next()
 })
 
-app.use(expres.json())
+app.use(express.json())
 app.use(cookieParser())
 
 app.get("/",(req:Request,res:Response)=>{

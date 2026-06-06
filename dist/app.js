@@ -1,11 +1,11 @@
-import expres from "express";
+import express from "express";
 import cookieParser from "cookie-parser";
 import errorHandler from "./common/middlewares/errorHandler.js";
 import router from "./routes.js";
-import env from "./config/env.js";
-const app = expres();
+import validate from "./config/validate.js";
+const app = express();
 app.use((req, res, next) => {
-    const allowedOrigin = env.CORS_ORIGIN;
+    const allowedOrigin = validate.CORS_ORIGIN;
     if (allowedOrigin) {
         res.header("Access-Control-Allow-Origin", allowedOrigin);
         res.header("Access-Control-Allow-Credentials", "true");
@@ -17,7 +17,7 @@ app.use((req, res, next) => {
     }
     next();
 });
-app.use(expres.json());
+app.use(express.json());
 app.use(cookieParser());
 app.get("/", (req, res) => {
     res.send("Takshahub Backend is running");

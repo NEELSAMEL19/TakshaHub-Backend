@@ -1,6 +1,6 @@
 import app from "./app.js";
-import env from "./config/env.js";
-const PORT = Number(env.PORT ?? 3030) 
+import validate from "./config/validate.js";
+const PORT = Number(validate.PORT ?? 3030) 
 const HOST = "0.0.0.0"
 
 app.listen(PORT,HOST,()=>{

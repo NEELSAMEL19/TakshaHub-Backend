@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { AppError } from "./AppError.js";
-import env from "../../config/env.js";
+import validate from "../../config/validate.js";
 
 interface JwtPayload {
   id: string;
@@ -29,7 +29,7 @@ export const authMiddleware = (
 
     const decoded = jwt.verify(
       token,
-      env.JWT_ACCESS_SECRET
+      validate.JWT_ACCESS_SECRET
     ) as JwtPayload;
 
     req.user = decoded;
@@ -59,7 +59,7 @@ export const optionalAuthMiddleware = (
     if (token) {
       const decoded = jwt.verify(
         token,
-        env.JWT_ACCESS_SECRET
+        validate.JWT_ACCESS_SECRET
       ) as JwtPayload;
 
       req.user = decoded;

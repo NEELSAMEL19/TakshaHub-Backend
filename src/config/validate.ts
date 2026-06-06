@@ -2,7 +2,9 @@ import "dotenv/config";
 import { z } from "zod";
 
 const envSchema = z.object({
-  NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
+  NODE_ENV: z
+    .enum(["development", "production", "test"])
+    .default("development"),
   PORT: z.string().optional(),
   DATABASE_URL: z.string(),
   OTP_SECRET: z.string().min(1),
@@ -16,6 +18,6 @@ const envSchema = z.object({
   CORS_ORIGIN: z.string().optional(),
 });
 
-const env = envSchema.parse(process.env);
+const validate = envSchema.parse(process.env);
 
-export default env;
+export default validate;
