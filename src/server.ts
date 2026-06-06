@@ -1,5 +1,6 @@
 import app from "./app.js";
 import validate from "./config/validate.js";
+
 const PORT = Number(validate.PORT ?? 3030) 
 const HOST = "0.0.0.0"
 
