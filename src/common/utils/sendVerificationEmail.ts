@@ -1,22 +1,26 @@
 import { transporter } from "../../config/mail.service.js";
 
-export const sendVerificationEmail = async (
+export const sendVerificationEmail = (
   email: string,
   otp: string,
-  type: "verification" | "password-reset" = "verification"
+  type: "verification" | "password-reset" = "verification",
 ) => {
-  const subject = type === "password-reset" 
-    ? "Reset your password - OTP" 
-    : "Verify your email - OTP";
-  
-  const message = type === "password-reset"
-    ? "Your password reset OTP code is:"
-    : "Your OTP code is:";
+  const subject =
+    type === "password-reset"
+      ? "Reset your password - OTP"
+      : "Verify your email - OTP";
 
-  await transporter.sendMail({
-    to: email,
-    subject,
-    html: `
+  const message =
+    type === "password-reset"
+      ? "Your password reset OTP code is:"
+      : "Your OTP code is:";
+
+  // 🚀 fire-and-forget (non-blocking)
+  transporter
+    .sendMail({
+      to: email,
+      subject,
+      html: `
       <div style="font-family: Arial, sans-serif; text-align: center;">
         <h2>${type === "password-reset" ? "Password Reset" : "Email Verification"}</h2>
         <p>${message}</p>
@@ -24,5 +28,8 @@ export const sendVerificationEmail = async (
         <p>This OTP will expire in ${type === "password-reset" ? "15" : "10"} minutes.</p>
       </div>
     `,
-  });
-};``
+    })
+    .catch((err) => {
+      console.error("Email sending failed:", err);
+    });
+};
