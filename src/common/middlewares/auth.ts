@@ -1,24 +1,33 @@
 import type { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
-import { AppError } from "./AppError.js";
+import { MemberRole } from "@prisma/client";
 import validate from "../../config/validate.js";
+import { AppError } from "./AppError.js";
 
 interface JwtPayload {
   id: string;
+  role: MemberRole;
+  schoolId?: string;
+}
+
+interface AuthUser {
+  id: string;
+  role: MemberRole;
+  schoolId?: bigint;
 }
 
 declare global {
   namespace Express {
     interface Request {
-      user?: JwtPayload;
+      user?: AuthUser;
     }
   }
 }
 
-export const authMiddleware = (
+export const authMiddleware = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
     const token = req.cookies?.token;
@@ -27,12 +36,13 @@ export const authMiddleware = (
       return next(new AppError("No token provided. Please login first.", 401));
     }
 
-    const decoded = jwt.verify(
-      token,
-      validate.JWT_ACCESS_SECRET
-    ) as JwtPayload;
+    const decoded = jwt.verify(token, validate.JWT_ACCESS_SECRET) as JwtPayload;
 
-    req.user = decoded;
+    req.user = {
+      id: decoded.id,
+      role: decoded.role,
+      schoolId: decoded.schoolId ? BigInt(decoded.schoolId) : undefined,
+    };
 
     return next();
   } catch (error) {
@@ -48,22 +58,30 @@ export const authMiddleware = (
   }
 };
 
-export const optionalAuthMiddleware = (
+export const optionalAuthMiddleware = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
     const token = req.cookies?.token;
 
-    if (token) {
-      const decoded = jwt.verify(
-        token,
-        validate.JWT_ACCESS_SECRET
-      ) as JwtPayload;
+    if (!token) return next();
 
-      req.user = decoded;
-    }
+    const decoded = jwt.verify(token, validate.JWT_ACCESS_SECRET) as JwtPayload;
+
+    const user = await prisma.user.findUnique({
+      where: { id: BigInt(decoded.id) },
+      include: { member: true },
+    });
+
+    const activeMember = user?.member[0];
+
+    req.user = {
+      id: decoded.id,
+      role: activeMember?.role,
+      schoolId: activeMember?.schoolId,
+    };
 
     return next();
   } catch {

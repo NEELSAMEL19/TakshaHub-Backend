@@ -1,12 +1,13 @@
-import type { Request, Response } from "express";
+import type { CookieOptions, Request, Response } from "express";
 import { asyncHandler } from "../common/utils/utils.js";
 import { AuthService } from "./auth.service.js";
 
-const cookieOptions = {
+const cookieOptions: CookieOptions = {
   httpOnly: true,
   secure: process.env.NODE_ENV === "production",
-  sameSite: "strict" as const,
+  sameSite: "lax",
   maxAge: 7 * 24 * 60 * 60 * 1000,
+  path: "/",
 };
 
 export class AuthController {
@@ -36,8 +37,6 @@ export class AuthController {
       otp,
     });
 
-    res.cookie("token", result.token, cookieOptions);
-
     return res.status(200).json({
       success: true,
       message: result.message,
@@ -64,10 +63,7 @@ export class AuthController {
   static login = asyncHandler(async (req: Request, res: Response) => {
     const { email, password } = req.body;
 
-    const result = await AuthService.login({
-      email,
-      password,
-    });
+    const result = await AuthService.login({ email, password });
 
     res.cookie("token", result.token, cookieOptions);
 
@@ -76,6 +72,7 @@ export class AuthController {
       message: result.message,
       data: {
         user: result.user,
+        auth: result.auth, // 🔥 ADD THIS
       },
     });
   });
@@ -90,14 +87,12 @@ export class AuthController {
       });
     }
 
-    const user = await AuthService.getCurrentUser(userId);
+    const result = await AuthService.getCurrentUser(userId);
 
     return res.status(200).json({
       success: true,
       message: "Authenticated user fetched successfully",
-      data: {
-        user,
-      },
+      data: result, // 🔥 no extra nesting
     });
   });
 
