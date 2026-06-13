@@ -5,7 +5,6 @@ import cors from "cors";
 
 import errorHandler from "./common/middlewares/errorHandler.js";
 import router from "./routes.js";
-import validate from "./config/validate.js";
 
 const app = express();
 
@@ -27,7 +26,7 @@ const corsOptions = {
   },
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
-  credentials: true, // keep this ONLY if you use cookies/login
+  credentials: true, 
 };
 
 app.use(cors(corsOptions));
