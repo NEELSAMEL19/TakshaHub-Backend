@@ -15,21 +15,26 @@ export const sendVerificationEmail = (
       ? "Your password reset OTP code is:"
       : "Your OTP code is:";
 
-  // 🚀 fire-and-forget (non-blocking)
-  transporter
+  // fire-and-forget BUT with proper logging
+  void transporter
     .sendMail({
       to: email,
       subject,
       html: `
-      <div style="font-family: Arial, sans-serif; text-align: center;">
-        <h2>${type === "password-reset" ? "Password Reset" : "Email Verification"}</h2>
-        <p>${message}</p>
-        <h1 style="letter-spacing: 5px;">${otp}</h1>
-        <p>This OTP will expire in ${type === "password-reset" ? "15" : "10"} minutes.</p>
-      </div>
-    `,
+        <div style="font-family: Arial, sans-serif; text-align: center;">
+          <h2>${type === "password-reset" ? "Password Reset" : "Email Verification"}</h2>
+          <p>${message}</p>
+          <h1 style="letter-spacing: 5px;">${otp}</h1>
+          <p>This OTP will expire in ${
+            type === "password-reset" ? "15" : "10"
+          } minutes.</p>
+        </div>
+      `,
+    })
+    .then((info) => {
+      console.log("📧 Email sent successfully:", info.messageId);
     })
     .catch((err) => {
-      console.error("Email sending failed:", err);
+      console.error("❌ Email sending failed:", err);
     });
 };
