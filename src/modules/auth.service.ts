@@ -10,53 +10,6 @@ import { serializeBigInt } from "../common/utils/utils.js";
 const SALT_ROUNDS = Number(validate.BCRYPT_ROUNDS ?? "10");
 
 export class AuthService {
-  private static async getUserResponse(userId: bigint) {
-    const user = await prisma.user.findFirst({
-      where: {
-        id: userId,
-        deletedAt: null,
-      },
-      include: {
-        member: {
-          where: { deletedAt: null },
-          take: 1,
-          include: {
-            school: true,
-          },
-        },
-      },
-    });
-
-    if (!user) {
-      throw new AppError("User not found", 404);
-    }
-
-    const school = user.member[0]?.school;
-
-    if (!school) {
-      throw new AppError("School not found for user", 404);
-    }
-
-    return serializeBigInt({
-      id: user.id,
-      fullName: user.fullName,
-      email: user.email,
-      phoneNumber: user.phoneNumber,
-      isVerified: user.isVerified,
-      school: {
-        name: school.name,
-        type: school.type,
-        board: school.board,
-        city: school.city,
-        state: school.state,
-        website: school.website,
-        udiseNumber: school.udiseNumber,
-      },
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
-    });
-  }
-
   static createToken(payload: {
     id: bigint;
     schoolId?: string;
@@ -178,7 +131,7 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new AppError("Invalid email or password", 401);
+      throw new AppError("User not found", 404);
     }
 
     if (!user.isVerified) {
