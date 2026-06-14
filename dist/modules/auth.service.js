@@ -4,10 +4,7 @@ import { normalizeEmail } from "./auth.helpers.js";
 import { AppError } from "../common/middlewares/AppError.js";
 import validate from "../config/validate.js";
 import prisma from "../config/prisma.js";
-import crypto from "crypto";
 import { MemberRole } from "@prisma/client";
-import { redis } from "../config/redis.js";
-import { sendVerificationEmail } from "../common/utils/sendVerificationEmail.js";
 import { serializeBigInt } from "../common/utils/utils.js";
 const SALT_ROUNDS = Number(validate.BCRYPT_ROUNDS ?? "10");
 export class AuthService {
@@ -53,209 +50,154 @@ export class AuthService {
             updatedAt: user.updatedAt,
         });
     }
-    static createToken(user) {
+    static createToken(payload) {
         return jwt.sign({
-            id: user.id.toString(),
-        }, validate.JWT_ACCESS_SECRET, { expiresIn: "7d" });
+            id: payload.id.toString(),
+            schoolId: payload.schoolId,
+            role: payload.role,
+        }, validate.JWT_ACCESS_SECRET, {
+            expiresIn: "7d",
+        });
     }
     static async register(data) {
         const email = normalizeEmail(data.email);
-        // 1️⃣ Check existing user
-        let user = await prisma.user.findUnique({
+        const fieldErrors = {};
+        if (!data.fullName || data.fullName.trim().length < 2) {
+            fieldErrors.fullName = "Full name is required";
+        }
+        if (!email) {
+            fieldErrors.email = "Email is required";
+        }
+        if (!data.password || data.password.length < 6) {
+            fieldErrors.password = "Password must be at least 6 characters";
+        }
+        if (!data.school?.name)
+            fieldErrors["school.name"] = "School name is required";
+        if (!data.school?.type)
+            fieldErrors["school.type"] = "School type is required";
+        if (!data.school?.board)
+            fieldErrors["school.board"] = "School board is required";
+        if (!data.school?.city)
+            fieldErrors["school.city"] = "City is required";
+        if (!data.school?.state)
+            fieldErrors["school.state"] = "State is required";
+        if (!data.school?.udiseNumber)
+            fieldErrors["school.udiseNumber"] = "UDISE number is required";
+        if (Object.keys(fieldErrors).length > 0) {
+            throw new AppError("Validation failed", 400, fieldErrors);
+        }
+        const userExists = await prisma.user.findUnique({
             where: { email },
         });
-        if (user?.isVerified) {
+        if (userExists) {
             throw new AppError("Email already exists", 409);
         }
-        // 2️⃣ Create user if not exists
-        if (!user) {
-            const passwordHash = await bcrypt.hash(data.password, SALT_ROUNDS);
-            user = await prisma.user.create({
-                data: {
-                    fullName: data.fullName,
-                    email,
-                    passwordHash,
-                    phoneNumber: data.phoneNumber ?? null,
-                    isVerified: false,
-                },
-            });
-            const school = await prisma.school.create({
-                data: {
-                    name: data.school.name,
-                    type: data.school.type,
-                    board: data.school.board,
-                    city: data.school.city,
-                    state: data.school.state,
-                    website: data.school.website ?? null,
-                    udiseNumber: data.school.udiseNumber,
-                },
-            });
-            await prisma.member.create({
-                data: {
-                    userId: user.id,
-                    schoolId: school.id,
-                    role: MemberRole.ADMIN,
-                },
-            });
-        }
-        // 3️⃣ OTP
-        const otp = Math.floor(100000 + Math.random() * 900000).toString();
-        const otpKey = `verify:otp:${email}`;
-        const otpHash = crypto
-            .createHmac("sha256", validate.OTP_SECRET)
-            .update(`${email}:${otp}`)
-            .digest("hex");
-        // 4️⃣ Store OTP
-        const otpData = {
-            hash: otpHash,
-            attempts: 0,
-            createdAt: Date.now(),
-        };
-        await redis.set(otpKey, otpData, { ex: 600 });
-        // 5️⃣ Send email
-        await sendVerificationEmail(email, otp);
+        const passwordHash = await bcrypt.hash(data.password, SALT_ROUNDS);
+        const user = await prisma.user.create({
+            data: {
+                fullName: data.fullName,
+                email,
+                passwordHash,
+                phoneNumber: data.phoneNumber ?? null,
+                isVerified: true,
+            },
+        });
+        const school = await prisma.school.create({
+            data: {
+                name: data.school.name,
+                type: data.school.type,
+                board: data.school.board,
+                city: data.school.city,
+                state: data.school.state,
+                website: data.school.website ?? null,
+                udiseNumber: data.school.udiseNumber,
+            },
+        });
+        await prisma.member.create({
+            data: {
+                userId: user.id,
+                schoolId: school.id,
+                role: MemberRole.ADMIN,
+            },
+        });
         return {
-            message: "OTP sent successfully. Please verify your email.",
+            message: "Registered successfully",
         };
-    }
-    static async verifyOtp(data) {
-        const email = normalizeEmail(data.email);
-        const otp = data.otp;
-        const OTP_SECRET = validate.OTP_SECRET;
-        if (!OTP_SECRET)
-            throw new Error("OTP_SECRET missing");
-        // 1️⃣ Get user
-        const user = await prisma.user.findUnique({
-            where: { email },
-        });
-        if (!user)
-            throw new AppError("User not found", 404);
-        if (user.isVerified) {
-            throw new AppError("Already verified", 400);
-        }
-        // 2️⃣ Redis key
-        const otpKey = `verify:otp:${email}`;
-        const raw = await redis.get(otpKey);
-        if (!raw) {
-            throw new AppError("OTP expired. Please resend OTP", 400);
-        }
-        let otpData;
-        try {
-            // Handle both string and already-parsed object from Upstash
-            otpData = typeof raw === "string" ? JSON.parse(raw) : raw;
-            if (!otpData.hash ||
-                otpData.attempts === undefined ||
-                !otpData.createdAt) {
-                throw new Error("Missing required fields");
-            }
-        }
-        catch (error) {
-            await redis.del(otpKey);
-            throw new AppError("Invalid OTP data. Please resend OTP", 400);
-        }
-        // 3️⃣ Expiry check (server-side safety)
-        if (Date.now() - otpData.createdAt > 10 * 60 * 1000) {
-            await redis.del(otpKey);
-            throw new AppError("OTP expired. Please resend OTP", 400);
-        }
-        // 4️⃣ Hash compare
-        const incomingHash = crypto
-            .createHmac("sha256", OTP_SECRET)
-            .update(`${email}:${otp}`)
-            .digest("hex");
-        if (incomingHash !== otpData.hash) {
-            const attemptsKey = `verify:attempts:${email}`;
-            const attempts = await redis.incr(attemptsKey);
-            if (attempts === 1) {
-                await redis.expire(attemptsKey, 600);
-            }
-            if (attempts >= 3) {
-                await redis.set(`verify:lock:${email}`, "1", { ex: 3600 });
-                await redis.del(attemptsKey);
-            }
-            throw new AppError("Invalid OTP", 400);
-        }
-        // 5️⃣ Verify user
-        const verifiedUser = await prisma.user.update({
-            where: { email: email },
-            data: { isVerified: true },
-        });
-        // 6️⃣ Cleanup
-        await redis.del(otpKey);
-        await redis.del(`verify:attempts:${email}`);
-        const token = this.createToken(verifiedUser);
-        const userResponse = await this.getUserResponse(verifiedUser.id);
-        return {
-            message: "Email verified successfully",
-            user: userResponse,
-            token,
-        };
-    }
-    static async resendOtp(data) {
-        const email = normalizeEmail(data.email);
-        if (!validate.OTP_SECRET) {
-            throw new Error("OTP_SECRET is missing in validateironment variables");
-        }
-        const user = await prisma.user.findUnique({
-            where: { email },
-        });
-        if (!user) {
-            throw new AppError("User not found", 404);
-        }
-        if (user.isVerified) {
-            throw new AppError("Already verified", 400);
-        }
-        // Verify whether the account is currently locked due to too many OTP attempts.
-        const isLocked = await redis.get(`verify:lock:${email}`);
-        if (isLocked) {
-            throw new AppError("Too many attempts. Try again after 1 hour", 429);
-        }
-        const otp = Math.floor(100000 + Math.random() * 900000).toString();
-        const hash = crypto
-            .createHmac("sha256", validate.OTP_SECRET)
-            .update(`${email}:${otp}`)
-            .digest("hex");
-        const otpData = {
-            hash,
-            attempts: 0,
-            createdAt: Date.now(),
-        };
-        const otpKey = `verify:otp:${email}`;
-        await redis.set(otpKey, otpData, { ex: 600 });
-        // Send the verification email with the new OTP.
-        await sendVerificationEmail(user.email, otp);
-        return { message: "OTP resent successfully" };
     }
     static async login(data) {
         const email = normalizeEmail(data.email);
         const password = data.password;
-        // 1️⃣ Check if user exists
+        const fieldErrors = {};
+        if (!email)
+            fieldErrors.email = "Email is required";
+        if (!password)
+            fieldErrors.password = "Password is required";
+        if (Object.keys(fieldErrors).length > 0) {
+            throw new AppError("Validation failed", 400, fieldErrors);
+        }
         const user = await prisma.user.findUnique({
             where: { email },
+            include: {
+                member: true,
+            },
         });
         if (!user) {
             throw new AppError("Invalid email or password", 401);
         }
-        // 2️⃣ Check if user is verified
         if (!user.isVerified) {
             throw new AppError("Please verify your email first", 403);
         }
-        // 3️⃣ Compare passwords
         const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
         if (!isPasswordValid) {
             throw new AppError("Invalid email or password", 401);
         }
-        // 4️⃣ Generate JWT token
-        const token = this.createToken(user);
-        const userResponse = await this.getUserResponse(user.id);
+        const activeMember = user.member[0];
+        if (!activeMember) {
+            throw new AppError("No school assigned to user", 403);
+        }
+        const token = this.createToken({
+            id: user.id,
+            schoolId: activeMember.schoolId.toString(),
+            role: activeMember.role,
+        });
         return serializeBigInt({
             message: "Login successful",
-            user: userResponse,
+            user: {
+                id: user.id,
+                fullName: user.fullName,
+                email: user.email,
+                phoneNumber: user.phoneNumber,
+                isVerified: user.isVerified,
+            },
+            auth: {
+                role: activeMember.role,
+                schoolId: activeMember.schoolId,
+            },
             token,
         });
     }
     static async getCurrentUser(userId) {
-        return this.getUserResponse(BigInt(userId));
+        const user = await prisma.user.findUnique({
+            where: { id: BigInt(userId) },
+            include: {
+                member: true,
+            },
+        });
+        if (!user) {
+            throw new AppError("User not found", 404);
+        }
+        const activeMember = user.member[0];
+        return serializeBigInt({
+            user: {
+                id: user.id,
+                fullName: user.fullName,
+                email: user.email,
+            },
+            auth: {
+                role: activeMember?.role,
+                schoolId: activeMember?.schoolId,
+            },
+        });
     }
 }
 //# sourceMappingURL=auth.service.js.map
