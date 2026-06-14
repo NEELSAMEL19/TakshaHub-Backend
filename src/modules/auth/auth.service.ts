@@ -125,6 +125,12 @@ export class AuthService {
       return { school, role, user };
     });
 
+    const token = this.createToken({
+      id: user.id,
+      schoolId: school.id.toString(),
+      role: role.portalType,
+    });
+
     return serializeBigInt({
       message: "Registered successfully",
       user: {
@@ -139,6 +145,7 @@ export class AuthService {
         role: role.portalType,
         schoolId: school.id,
       },
+      token,
     });
   }
 

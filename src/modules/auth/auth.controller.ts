@@ -25,6 +25,8 @@ export class AuthController {
       school,
     });
 
+    res.cookie("token", result.token, cookieOptions);
+
     return res.status(201).json({
       success: true,
       message: result.message,
