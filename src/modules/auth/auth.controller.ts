@@ -1,5 +1,5 @@
 import type { CookieOptions, Request, Response } from "express";
-import { asyncHandler } from "../common/utils/utils.js";
+import { asyncHandler } from "../../common/utils/utils.js";
 import { AuthService } from "./auth.service.js";
 
 

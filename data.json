@@ -1,0 +1,110 @@
+{
+  "code": 200,
+  "message": "Request processed successfully",
+  "data": {
+    "Dashboard": {},
+
+    "User Management": {
+      "users": "Users",
+      "roles_permissions": "Roles & Permissions",
+      "activity_logs": "Activity Logs"
+    },
+
+    "Organization": {
+      "school_details": "School Details",
+      "academic_years": "Academic Years",
+      "campuses": "Campuses",
+      "departments": "Departments"
+    },
+
+    "Student Management": {
+      "admissions": "Admissions",
+      "students": "Students",
+      "student_lifecycle": "Student Lifecycle",
+      "guardians": "Parents / Guardians",
+      "id_cards": "ID Cards"
+    },
+
+    "Staff Management": {
+      "teachers": "Teachers",
+      "staff": "Staff",
+      "attendance": "Attendance",
+      "leave_management": "Leave Management",
+      "payroll": "Payroll"
+    },
+
+    "Academics": {
+      "classes_sections": "Classes & Sections",
+      "subjects": "Subjects",
+      "timetable": "Timetable",
+      "lesson_plans": "Lesson Plans",
+      "assignments": "Assignments & Homework"
+    },
+
+    "Attendance Management": {
+      "student_attendance": "Student Attendance",
+      "teacher_attendance": "Teacher Attendance",
+      "attendance_reports": "Attendance Reports",
+      "leave_requests": "Leave Requests"
+    },
+
+    "Examinations": {
+      "exam_setup": "Exam Setup",
+      "marks_entry": "Marks Entry",
+      "results": "Results",
+      "grade_management": "Grade Management",
+      "report_cards": "Report Cards",
+      "report_templates": "Report Templates"
+    },
+
+    "Finance": {
+      "fee_structure": "Fee Structure",
+      "fee_collection": "Fee Collection",
+      "due_fees": "Due Fees",
+      "scholarships": "Scholarships",
+      "expenses": "Expenses",
+      "accounting": "Accounting"
+    },
+
+    "Communication": {
+      "announcements": "Announcements",
+      "notifications": "Notifications",
+      "email_sms": "Email & SMS",
+      "circulars": "Circulars"
+    },
+
+    "Library": {
+      "books": "Books",
+      "book_issue_return": "Issue & Return",
+      "library_reports": "Reports"
+    },
+
+    "Transport": {
+      "routes": "Routes",
+      "vehicles": "Vehicles",
+      "drivers": "Drivers",
+      "transport_assignments": "Assignments"
+    },
+
+    "Inventory": {
+      "items": "Items",
+      "stock_management": "Stock Management",
+      "purchase_orders": "Purchase Orders"
+    },
+
+    "Reports": {
+      "academic_reports": "Academic Reports",
+      "attendance_reports": "Attendance Reports",
+      "financial_reports": "Financial Reports",
+      "custom_reports": "Custom Reports"
+    },
+
+    "Settings": {
+      "general": "General Settings",
+      "academic": "Academic Settings",
+      "payment": "Payment Settings",
+      "notifications": "Notification Settings",
+      "backup_restore": "Backup & Restore"
+    }
+  }
+}

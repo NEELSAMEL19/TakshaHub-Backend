@@ -1,19 +1,19 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { normalizeEmail } from "./auth.helpers.js";
-import { AppError } from "../common/middlewares/AppError.js";
-import validate from "../config/validate.js";
-import prisma from "../config/prisma.js";
-import { MemberRole } from "@prisma/client";
-import { serializeBigInt } from "../common/utils/utils.js";
+import { AppError } from "../../common/middlewares/AppError.js";
+import validate from "../../config/validate.js";
+import prisma from "../../config/prisma.js";
+import { PortalType } from "@prisma/client";
+import { serializeBigInt } from "../../common/utils/utils.js";
 
 const SALT_ROUNDS = Number(validate.BCRYPT_ROUNDS ?? "10");
 
 export class AuthService {
   static createToken(payload: {
     id: bigint;
-    schoolId?: string;
-    role: MemberRole;
+    schoolId: string;
+    role: PortalType;
   }) {
     return jwt.sign(
       {
@@ -30,6 +30,8 @@ export class AuthService {
 
   static async register(data: any) {
     const email = normalizeEmail(data.email);
+    const phoneNumber = data.phoneNumber?.trim() || null;
+    const website = data.school?.website?.trim() || null;
 
     const fieldErrors: Record<string, string> = {};
 
@@ -65,49 +67,79 @@ export class AuthService {
       throw new AppError("Validation failed", 400, fieldErrors);
     }
 
-    const userExists = await prisma.user.findUnique({
+    const existingUser = await prisma.user.findUnique({
       where: { email },
     });
 
-    if (userExists) {
+    if (existingUser) {
       throw new AppError("Email already exists", 409);
+    }
+
+    const existingSchool = await prisma.school.findUnique({
+      where: { udiseNumber: data.school.udiseNumber },
+    });
+
+    if (existingSchool) {
+      throw new AppError("School already exists", 409);
     }
 
     const passwordHash = await bcrypt.hash(data.password, SALT_ROUNDS);
 
-    const user = await prisma.user.create({
-      data: {
-        fullName: data.fullName,
-        email,
-        passwordHash,
-        phoneNumber: data.phoneNumber ?? null,
-        isVerified: true,
-      },
+    const { school, role, user } = await prisma.$transaction(async (tx) => {
+      const school = await tx.school.create({
+        data: {
+          name: data.school.name,
+          type: data.school.type,
+          board: data.school.board,
+          city: data.school.city,
+          state: data.school.state,
+          website,
+          udiseNumber: data.school.udiseNumber,
+        },
+      });
+
+      const role = await tx.role.create({
+        data: {
+          schoolId: school.id,
+          name: PortalType.ADMIN,
+          portalType: PortalType.ADMIN,
+        },
+      });
+
+      const user = await tx.user.create({
+        data: {
+          fullName: data.fullName.trim(),
+          email,
+          passwordHash,
+          phoneNumber,
+          schoolId: school.id,
+          roleId: role.id,
+          isVerified: true,
+        },
+        include: {
+          school: true,
+          role: true,
+        },
+      });
+
+      return { school, role, user };
     });
 
-    const school = await prisma.school.create({
-      data: {
-        name: data.school.name,
-        type: data.school.type,
-        board: data.school.board,
-        city: data.school.city,
-        state: data.school.state,
-        website: data.school.website ?? null,
-        udiseNumber: data.school.udiseNumber,
-      },
-    });
-
-    await prisma.member.create({
-      data: {
-        userId: user.id,
-        schoolId: school.id,
-        role: MemberRole.ADMIN,
-      },
-    });
-
-    return {
+    return serializeBigInt({
       message: "Registered successfully",
-    };
+      user: {
+        id: user.id,
+        fullName: user.fullName,
+        email: user.email,
+        phoneNumber: user.phoneNumber,
+        isVerified: user.isVerified,
+        isActive: user.isActive,
+      },
+      auth: {
+        role: role.portalType,
+        schoolId: school.id,
+      },
+    });
   }
 
   static async login(data: any) {
@@ -126,7 +158,8 @@ export class AuthService {
     const user = await prisma.user.findUnique({
       where: { email },
       include: {
-        member: true,
+        school: true,
+        role: true,
       },
     });
 
@@ -138,22 +171,24 @@ export class AuthService {
       throw new AppError("Please verify your email first", 403);
     }
 
+    if (!user.isActive) {
+      throw new AppError("Your account is inactive", 403);
+    }
+
+    if (!user.role) {
+      throw new AppError("No role assigned to user", 403);
+    }
+
     const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
 
     if (!isPasswordValid) {
       throw new AppError("Invalid email or password", 401);
     }
 
-    const activeMember = user.member[0];
-
-    if (!activeMember) {
-      throw new AppError("No school assigned to user", 403);
-    }
-
     const token = this.createToken({
       id: user.id,
-      schoolId: activeMember.schoolId.toString(),
-      role: activeMember.role,
+      schoolId: user.schoolId.toString(),
+      role: user.role.portalType,
     });
 
     return serializeBigInt({
@@ -164,10 +199,15 @@ export class AuthService {
         email: user.email,
         phoneNumber: user.phoneNumber,
         isVerified: user.isVerified,
+        isActive: user.isActive,
       },
       auth: {
-        role: activeMember.role,
-        schoolId: activeMember.schoolId,
+        role: user.role.portalType,
+        schoolId: user.schoolId,
+      },
+      school: {
+        id: user.school.id,
+        name: user.school.name,
       },
       token,
     });
@@ -177,7 +217,8 @@ export class AuthService {
     const user = await prisma.user.findUnique({
       where: { id: BigInt(userId) },
       include: {
-        member: true,
+        school: true,
+        role: true,
       },
     });
 
@@ -185,17 +226,26 @@ export class AuthService {
       throw new AppError("User not found", 404);
     }
 
-    const activeMember = user.member[0];
+    if (!user.isActive) {
+      throw new AppError("Your account is inactive", 403);
+    }
 
     return serializeBigInt({
       user: {
         id: user.id,
         fullName: user.fullName,
         email: user.email,
+        phoneNumber: user.phoneNumber,
+        isVerified: user.isVerified,
+        isActive: user.isActive,
       },
       auth: {
-        role: activeMember?.role,
-        schoolId: activeMember?.schoolId,
+        role: user.role?.portalType,
+        schoolId: user.schoolId,
+      },
+      school: {
+        id: user.school.id,
+        name: user.school.name,
       },
     });
   }
