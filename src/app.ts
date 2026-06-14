@@ -1,39 +1,30 @@
-import express from "express"
-import type { Application, Request, Response } from "express"
-import cookieParser from "cookie-parser"
-import errorHandler from "./common/middlewares/errorHandler.js"
-import router from "./routes.js"
-import validate from "./config/validate.js"
+import express from "express";
+import type { Request, Response } from "express";
+import cookieParser from "cookie-parser";
+import cors from "cors";
 
-const app:Application = express()
+import errorHandler from "./common/middlewares/errorHandler.js";
+import router from "./routes.js";
 
-app.use((req, res, next) => {
-    const allowedOrigin = validate.CORS_ORIGIN
+const app = express();
 
-    if (allowedOrigin) {
-        res.header("Access-Control-Allow-Origin", allowedOrigin)
-        res.header("Access-Control-Allow-Credentials", "true")
-        res.header("Access-Control-Allow-Headers", "Content-Type, Authorization")
-        res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-    }
+app.set("trust proxy", 1);
 
-    if (req.method === "OPTIONS") {
-        return res.sendStatus(204)
-    }
+app.use(express.json());
 
-    next()
-})
+app.use(cors({
+  origin: ["https://takshahub.vercel.app", "http://localhost:3000"],
+  credentials: true,
+}));
 
-app.use(express.json())
-app.use(cookieParser())
+app.use(cookieParser());
 
-app.get("/",(req:Request,res:Response)=>{
-    res.send("Takshahub Backend is running")
-})
+app.get("/", (req: Request, res: Response) => {
+  res.send("Takshahub Backend is running");
+});
 
-app.use("/api",router)
+app.use("/api", router);
 
-app.use(errorHandler)
+app.use(errorHandler);
 
-
-export default app
+export default app;
