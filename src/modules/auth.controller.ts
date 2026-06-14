@@ -2,10 +2,13 @@ import type { CookieOptions, Request, Response } from "express";
 import { asyncHandler } from "../common/utils/utils.js";
 import { AuthService } from "./auth.service.js";
 
+
+const isProduction = process.env.NODE_ENV === "production";
+
 const cookieOptions: CookieOptions = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
-  sameSite: "lax",
+  secure: isProduction,
+  sameSite: isProduction ? "none" : "lax",
   maxAge: 7 * 24 * 60 * 60 * 1000,
   path: "/",
 };
@@ -37,11 +40,14 @@ export class AuthController {
       otp,
     });
 
+    res.cookie("token", result.token, cookieOptions);
+
     return res.status(200).json({
       success: true,
       message: result.message,
       data: {
         user: result.user,
+        auth: result.auth,
       },
     });
   });
@@ -99,8 +105,8 @@ export class AuthController {
   static logout = asyncHandler(async (_req: Request, res: Response) => {
     res.clearCookie("token", {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
+      secure: isProduction,
+      sameSite: isProduction ? "none" : "lax",
     });
 
     return res.status(200).json({
