@@ -32,40 +32,6 @@ export class AuthController {
     });
   });
 
-  static verifyOtp = asyncHandler(async (req: Request, res: Response) => {
-    const { email, otp } = req.body;
-
-    const result = await AuthService.verifyOtp({
-      email,
-      otp,
-    });
-
-    res.cookie("token", result.token, cookieOptions);
-
-    return res.status(200).json({
-      success: true,
-      message: result.message,
-      data: {
-        user: result.user,
-        auth: result.auth,
-      },
-    });
-  });
-
-  static resendOtp = asyncHandler(async (req: Request, res: Response) => {
-    const { email } = req.body;
-
-    const result = await AuthService.resendOtp({
-      email,
-    });
-
-    return res.status(200).json({
-      success: true,
-      message: result.message,
-      data: result,
-    });
-  });
-
   static login = asyncHandler(async (req: Request, res: Response) => {
     const { email, password } = req.body;
 
