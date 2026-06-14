@@ -1,18 +1,18 @@
 import type { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
-import { MemberRole } from "@prisma/client";
+import { PortalType } from "@prisma/client";
 import validate from "../../config/validate.js";
 import { AppError } from "./AppError.js";
 
 interface JwtPayload {
   id: string;
-  role: MemberRole;
+  role: PortalType;
   schoolId?: string;
 }
 
 interface AuthUser {
   id: string;
-  role: MemberRole;
+  role: PortalType;
   schoolId?: bigint;
 }
 
