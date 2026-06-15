@@ -9,7 +9,7 @@ datasource db {
 model User {
   id           BigInt  @id @default(autoincrement())
   fullName     String  @db.VarChar(255)
-  email        String  @unique @db.VarChar(255)
+  email        String  @db.VarChar(255)
   passwordHash String  @db.VarChar(255)
   phoneNumber  String? @db.VarChar(20)
 
@@ -28,18 +28,20 @@ model User {
 
   @@index([schoolId])
   @@index([roleId])
+
+  @@unique([email, schoolId])
 }
 
 model School {
   id BigInt @id @default(autoincrement())
 
-  name        String      @db.VarChar(255)
+  name        String @db.VarChar(255)
   type        SchoolType
   board       SchoolBoard
-  city        String      @db.VarChar(100)
-  state       String      @db.VarChar(100)
-  website     String?     @db.VarChar(255)
-  udiseNumber String      @unique @db.VarChar(50)
+  city        String @db.VarChar(100)
+  state       String @db.VarChar(100)
+  website     String? @db.VarChar(255)
+  udiseNumber String @unique @db.VarChar(50)
 
   isVerified Boolean @default(false)
   isActive   Boolean @default(true)
@@ -47,19 +49,18 @@ model School {
   users User[]
   roles Role[]
 
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   deletedAt DateTime?
-
-  @@index([udiseNumber])
 }
 
 model Role {
   id BigInt @id @default(autoincrement())
+
   schoolId BigInt
 
-  name        String  @db.VarChar(100)
-  portalType PortalType
+  name        String
+  portalType  PortalType
 
   school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
@@ -69,26 +70,33 @@ model Role {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([schoolId, name])
+  @@unique([schoolId, name, portalType])
   @@index([schoolId])
 }
 
 model Permission {
   id BigInt @id @default(autoincrement())
 
-  module String @unique @db.VarChar(100)
+  module  String   // e.g. "user-management"
+  feature String   // e.g. "users"
+
+  label   String? 
+  order   Int      @default(0)
 
   rolePermissions RolePermission[]
 
   createdAt DateTime @default(now())
+
+  @@unique([module, feature])
+  @@index([module])
 }
 
 model RolePermission {
   roleId       BigInt
   permissionId BigInt
 
-  canCreate Boolean @default(false)
   canRead   Boolean @default(false)
+  canCreate Boolean @default(false)
   canUpdate Boolean @default(false)
   canDelete Boolean @default(false)
 
@@ -103,6 +111,7 @@ model RolePermission {
 
 enum PortalType {
   ADMIN
+  STAFF
   TEACHER
   STUDENT
 }

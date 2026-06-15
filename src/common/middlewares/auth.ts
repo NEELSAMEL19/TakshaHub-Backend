@@ -7,12 +7,14 @@ import { AppError } from "./AppError.js";
 interface JwtPayload {
   id: string;
   role: PortalType;
+  roleId: string;
   schoolId?: string;
 }
 
 interface AuthUser {
   id: string;
   role: PortalType;
+  roleId: bigint;
   schoolId?: bigint;
 }
 
@@ -41,6 +43,7 @@ export const authMiddleware = async (
     req.user = {
       id: decoded.id,
       role: decoded.role,
+      roleId: BigInt(decoded.roleId),
       schoolId: decoded.schoolId ? BigInt(decoded.schoolId) : undefined,
     };
 
