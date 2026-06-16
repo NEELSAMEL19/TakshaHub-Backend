@@ -12,12 +12,14 @@ const SALT_ROUNDS = Number(validate.BCRYPT_ROUNDS ?? "10");
 export class AuthService {
   static createToken(payload: {
     id: bigint;
+    roleId: bigint;
     schoolId: string;
     role: PortalType;
   }) {
     return jwt.sign(
       {
         id: payload.id.toString(),
+        roleId: payload.roleId.toString(),
         schoolId: payload.schoolId,
         role: payload.role,
       },
@@ -67,7 +69,7 @@ export class AuthService {
       throw new AppError("Validation failed", 400, fieldErrors);
     }
 
-    const existingUser = await prisma.user.findUnique({
+    const existingUser = await prisma.user.findFirst({
       where: { email },
     });
 
@@ -127,6 +129,7 @@ export class AuthService {
 
     const token = this.createToken({
       id: user.id,
+      roleId: role.id,
       schoolId: school.id.toString(),
       role: role.portalType,
     });
@@ -162,7 +165,7 @@ export class AuthService {
       throw new AppError("Validation failed", 400, fieldErrors);
     }
 
-    const user = await prisma.user.findUnique({
+    const user = await prisma.user.findFirst({
       where: { email },
       include: {
         school: true,
@@ -194,6 +197,7 @@ export class AuthService {
 
     const token = this.createToken({
       id: user.id,
+      roleId: user.roleId,
       schoolId: user.schoolId.toString(),
       role: user.role.portalType,
     });
