@@ -7,46 +7,34 @@ import type { PortalType } from "@prisma/client";
 // STAFF is filtered by RolePermission.canRead.
 
 const adminStaffMenuItems: MenuItem[] = [
+
+
   {
-    id: "dashboard",
-    label: "Dashboard",
-    path: "/dashboard",
-    module: null,
-    feature: null,
-    group: "Dashboard",
-  },
-  {
-    id: "users",
-    label: "Users",
-    path: "/users",
-    module: "user-management",
-    feature: "users",
-    group: "User Management",
-  },
-  {
-    id: "roles_permissions",
-    label: "Roles & Permissions",
-    path: "/roles",
-    module: "user-management",
-    feature: "roles-permissions",
-    group: "User Management",
-  },
-  {
-    id: "activity_logs",
-    label: "Activity Logs",
-    path: "/activity-logs",
-    module: "user-management",
-    feature: "activity-logs",
-    group: "User Management",
-  },
-  {
-    id: "school_details",
-    label: "School Details",
-    path: "/school",
-    module: "organization",
-    feature: "school-details",
+    id: "details",
+    label: "details",
+    path: "/details",
+    module: "Organization",
+    feature: "details",
     group: "Organization",
   },
+
+  {
+    id: "role",
+    label: "role",
+    path: "/role",
+    module: "Organization",
+    feature: "role",
+    group: "Organization",
+  },
+  
+  {
+    id: "team",
+    label: "team",
+    path: "/team",
+    module: "Organization",
+    feature: "team",
+    group: "Organization",
+  }
 ];
 
 // ─── Teacher Registry (separate from admin/staff) ───
