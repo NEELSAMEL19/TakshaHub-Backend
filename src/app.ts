@@ -9,18 +9,17 @@ import router from "./routes.js";
 const app = express();
 
 const corsOrigins = ["https://takshahub.vercel.app", "http://localhost:3000"];
+app.use(
+  cors({
+    origin: corsOrigins,
+    credentials: true,
+  }),
+);
 
 app.set("trust proxy", 1);
-
 app.use(express.json());
 
-app.use(cors({
-  origin: corsOrigins,
-  credentials: true,
-}));
-
 app.use(cookieParser());
-
 app.get("/", (req: Request, res: Response) => {
   res.send("Takshahub Backend is running");
 });
