@@ -12,10 +12,8 @@ const envSchema = z.object({
   UPSTASH_REDIS_REST_URL: z.string().url(),
   UPSTASH_REDIS_REST_TOKEN: z.string().min(1),
   BCRYPT_ROUNDS: z.string().optional(),
-  LOG_LEVEL: z.string().optional(),
   MAIL_USER: z.string().optional(),
   MAIL_PASSWORD: z.string().optional(),
-  CORS_ORIGIN: z.string().optional(),
 });
 
 const validate = envSchema.parse(process.env);
