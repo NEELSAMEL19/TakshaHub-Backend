@@ -11,6 +11,7 @@ export const authMiddleware = async (req, res, next) => {
         req.user = {
             id: decoded.id,
             role: decoded.role,
+            roleId: BigInt(decoded.roleId),
             schoolId: decoded.schoolId ? BigInt(decoded.schoolId) : undefined,
         };
         return next();

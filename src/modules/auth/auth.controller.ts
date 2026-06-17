@@ -71,8 +71,8 @@ export class AuthController {
   static logout = asyncHandler(async (_req: Request, res: Response) => {
     res.clearCookie("token", {
       httpOnly: true,
-      secure: isProduction,
-      sameSite: isProduction ? "none" : "lax",
+      secure: false,
+      sameSite: "none",
     });
 
     return res.status(200).json({
