@@ -4,10 +4,11 @@ import cors from "cors";
 import errorHandler from "./common/middlewares/errorHandler.js";
 import router from "./routes.js";
 const app = express();
+const corsOrigins = ["https://takshahub.vercel.app", "http://localhost:3000"];
 app.set("trust proxy", 1);
 app.use(express.json());
 app.use(cors({
-    origin: ["https://takshahub.vercel.app", "http://localhost:3000"],
+    origin: corsOrigins,
     credentials: true,
 }));
 app.use(cookieParser());
