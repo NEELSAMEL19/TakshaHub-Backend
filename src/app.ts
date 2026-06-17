@@ -5,15 +5,20 @@ import cors from "cors";
 
 import errorHandler from "./common/middlewares/errorHandler.js";
 import router from "./routes.js";
+import validate from "./config/validate.js";
 
 const app = express();
+
+const corsOrigins = validate.CORS_ORIGIN
+  ? validate.CORS_ORIGIN.split(",").map((origin) => origin.trim())
+  : ["https://takshahub.vercel.app", "http://localhost:3000"];
 
 app.set("trust proxy", 1);
 
 app.use(express.json());
 
 app.use(cors({
-  origin: ["https://takshahub.vercel.app", "http://localhost:3000"],
+  origin: corsOrigins,
   credentials: true,
 }));
 

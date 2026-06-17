@@ -5,8 +5,8 @@ import { AuthService } from "./auth.service.js";
 
 const cookieOptions: CookieOptions = {
   httpOnly: true,
-  secure: false,
-  sameSite: "none" ,
+  secure: true,
+  sameSite: "none",
   maxAge: 7 * 24 * 60 * 60 * 1000,
   path: "/",
 };
@@ -44,7 +44,8 @@ export class AuthController {
       message: result.message,
       data: {
         user: result.user,
-        auth: result.auth, // 🔥 ADD THIS
+        auth: result.auth,
+        school: result.school,
       },
     });
   });
@@ -71,7 +72,7 @@ export class AuthController {
   static logout = asyncHandler(async (_req: Request, res: Response) => {
     res.clearCookie("token", {
       httpOnly: true,
-      secure: false,
+      secure: true,
       sameSite: "none",
     });
 
