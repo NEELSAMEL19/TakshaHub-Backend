@@ -46,8 +46,9 @@ model School {
   isVerified Boolean @default(false)
   isActive   Boolean @default(true)
 
-  users User[]
-  roles Role[]
+  users   User[]
+  roles   Role[]
+  classes Class[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -59,7 +60,7 @@ model Role {
 
   schoolId BigInt
 
-  name        String
+  name String @db.VarChar(100)
   portalType  PortalType
 
   school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
@@ -77,10 +78,10 @@ model Role {
 model Permission {
   id BigInt @id @default(autoincrement())
 
-  module  String   // e.g. "user-management"
-  feature String   // e.g. "users"
+  module  String @db.VarChar(100)
+  feature String @db.VarChar(100)
+  label   String? @db.VarChar(255)
 
-  label   String? 
   order   Int      @default(0)
 
   rolePermissions RolePermission[]
@@ -108,6 +109,46 @@ model RolePermission {
   @@index([roleId])
   @@index([permissionId])
 }
+
+model Class {
+  id BigInt @id @default(autoincrement())
+
+  schoolId BigInt
+
+  name String @db.VarChar(50)
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  sections Section[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+    deletedAt DateTime?
+
+
+  @@unique([schoolId, name])
+  @@index([schoolId])
+}
+
+model Section {
+  id BigInt @id @default(autoincrement())
+
+  classId BigInt
+
+  name String @db.VarChar(20)
+
+  class Class @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+    deletedAt DateTime?
+
+
+  @@unique([classId, name])
+  @@index([classId])
+}
+
+
 
 enum PortalType {
   ADMIN
