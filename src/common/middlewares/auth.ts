@@ -60,3 +60,24 @@ export const authMiddleware = async (
     return next(error);
   }
 };
+
+export const isAdmin = (req: Request, _res: Response, next: NextFunction) => {
+  // Ensure the user has been authenticated by authMiddleware first
+  if (!req.user) {
+    return next(
+      new AppError("Unauthorized: Authentication context missing.", 401),
+    );
+  }
+
+  // Check if their portal role matches ADMIN
+  if (req.user.role !== PortalType.ADMIN) {
+    return next(
+      new AppError(
+        "Forbidden: Only institutional administrators can perform this action.",
+        403,
+      ),
+    );
+  }
+
+  return next();
+};
