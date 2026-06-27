@@ -26,11 +26,6 @@ const staffPermissionRegistry: PermissionModule[] = [
     name: "Organization",
     features: [
       {
-        id: "details",
-        name: "Details",
-        allowedActions: ["canRead"], 
-      },
-      {
         id: "role",
         name: "Role",
         allowedActions: ["canRead", "canCreate", "canUpdate", "canDelete"],
