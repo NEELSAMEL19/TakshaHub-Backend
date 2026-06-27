@@ -18,6 +18,8 @@ router.post(
   OrgRoleController.createRole,
 );
 
+router.get("/by-portal", authMiddleware, isAdmin, OrgRoleController.getRolesByPortalType);
+
 router.get("/all", authMiddleware, isAdmin, OrgRoleController.getAllRoles);
 
 router.get("/:id", authMiddleware, isAdmin, OrgRoleController.getRoleById);

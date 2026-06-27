@@ -1,9 +1,7 @@
-// org.role.service.ts
 import prisma from "../../../config/prisma.js";
 import { AppError } from "../../../common/middlewares/AppError.js";
 import { serializeBigInt } from "../../../common/utils/utils.js";
 import { PortalType } from "@prisma/client";
-import { VALID_STAFF_PERMISSIONS } from "../../sidebar/menu.registry.js";
 import {
   buildValidPermissionSet,
   getAllowedActionsMap,
@@ -13,7 +11,7 @@ export interface CreateRoleInput {
   schoolId: string | bigint;
   name: string;
   portalType: PortalType;
-  updatedBy?: bigint; // userId performing the action
+  updatedBy?: bigint;
   permissions?: {
     module: string;
     feature: string;
@@ -25,9 +23,6 @@ export interface CreateRoleInput {
 }
 
 export class OrgRoleService {
-  // ✅ Shared helper — batch fetch permissions, no N+1
-  // Replace resolvePermissions in org.role.service.ts with this
-
   private static async resolvePermissions(
     permissions: NonNullable<CreateRoleInput["permissions"]>,
     portalType: PortalType,
@@ -35,7 +30,6 @@ export class OrgRoleService {
     const validSet = buildValidPermissionSet(portalType);
     const allowedActionsMap = getAllowedActionsMap(portalType);
 
-    // ✅ Validate module:feature exists in registry
     for (const item of permissions) {
       const key = `${item.module}:${item.feature}`;
 
@@ -46,7 +40,6 @@ export class OrgRoleService {
         );
       }
 
-      // ✅ Validate that only allowed actions are being set to true
       const allowedActions = allowedActionsMap.get(key) ?? [];
       const actionsToCheck = [
         "canRead",
@@ -65,7 +58,6 @@ export class OrgRoleService {
       }
     }
 
-    // ✅ Single batch query — no N+1
     const globalPerms = await prisma.permission.findMany({
       where: {
         portalType,
@@ -96,6 +88,7 @@ export class OrgRoleService {
   }
 
   static async createRole(data: CreateRoleInput) {
+    // ✅ Guard: ADMIN roles cannot be created
     if (data.portalType === PortalType.ADMIN) {
       throw new AppError("Creating ADMIN roles is forbidden.", 403);
     }
@@ -120,7 +113,6 @@ export class OrgRoleService {
       );
     }
 
-    // ✅ Resolve permissions in one batch — only for STAFF
     const permissionDataToInsert =
       data.portalType === PortalType.STAFF && data.permissions?.length
         ? await OrgRoleService.resolvePermissions(
@@ -170,7 +162,28 @@ export class OrgRoleService {
     const formattedOldName = oldName.trim();
     const formattedNewName = newName.trim();
 
-    // Find using OLD values
+    // ✅ Guard: ADMIN portalType cannot be changed away
+    if (
+      oldPortalType === PortalType.ADMIN &&
+      newPortalType !== PortalType.ADMIN
+    ) {
+      throw new AppError(
+        "Cannot change the portalType of an ADMIN role. Only the name can be updated.",
+        403,
+      );
+    }
+
+    // ✅ Guard: Cannot promote a non-ADMIN role to ADMIN
+    if (
+      oldPortalType !== PortalType.ADMIN &&
+      newPortalType === PortalType.ADMIN
+    ) {
+      throw new AppError(
+        "Cannot assign ADMIN portalType to an existing role.",
+        403,
+      );
+    }
+
     const role = await prisma.role.findUnique({
       where: {
         schoolId_name_portalType: {
@@ -185,7 +198,6 @@ export class OrgRoleService {
       throw new AppError(`Role '${formattedOldName}' not found.`, 404);
     }
 
-    // Check duplicate using NEW values
     if (
       formattedOldName !== formattedNewName ||
       oldPortalType !== newPortalType
@@ -270,11 +282,17 @@ export class OrgRoleService {
     return serializeBigInt(role);
   }
 
-  static async getRoleDropdownOptions(schoolId: string | bigint) {
+  static async getRolesByPortalType(
+    schoolId: string | bigint,
+    portalType?: PortalType,
+  ) {
     const id = BigInt(schoolId);
     const roles = await prisma.role.findMany({
-      where: { schoolId: id },
-      select: { name: true },
+      where: {
+        schoolId: id,
+        ...(portalType && { portalType }),
+      },
+      select: { name: true, portalType: true },
       orderBy: { name: "asc" },
     });
     return roles.map((role) => ({ label: role.name, value: role.name }));
@@ -294,6 +312,10 @@ export class OrgRoleService {
     name: string,
     portalType: PortalType,
   ) {
+    if (portalType === PortalType.ADMIN) {
+      throw new AppError("Deleting ADMIN roles is forbidden.", 403);
+    }
+
     const sId = BigInt(schoolId);
     const role = await prisma.role.findUnique({
       where: { schoolId_name_portalType: { schoolId: sId, name, portalType } },
@@ -303,7 +325,6 @@ export class OrgRoleService {
       throw new AppError(`Role '${name}' not found.`, 404);
     }
 
-    // ✅ Cascade delete handles RolePermission automatically via schema
     await prisma.role.delete({ where: { id: role.id } });
 
     return { deleted: true };

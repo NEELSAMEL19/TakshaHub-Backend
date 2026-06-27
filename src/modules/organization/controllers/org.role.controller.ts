@@ -1,8 +1,10 @@
 // org.role.controller.ts
+import prisma from "../../../config/prisma.js";
 import type { Request, Response } from "express";
 import { asyncHandler } from "../../../common/utils/utils.js";
 import { OrgRoleService } from "../services/org.role.service.js";
 import { AppError } from "../../../common/middlewares/AppError.js";
+import { PortalType } from "@prisma/client";
 
 export class OrgRoleController {
   static createRole = asyncHandler(async (req: Request, res: Response) => {
@@ -66,13 +68,17 @@ export class OrgRoleController {
     return res.status(200).json({ success: true, data });
   });
 
-  static getRolesForDropdown = asyncHandler(
+  static getRolesByPortalType = asyncHandler(
     async (req: Request, res: Response) => {
       const schoolId = req.user?.schoolId;
       if (!schoolId)
         throw new AppError("Unauthorized: School context missing.", 401);
 
-      const data = await OrgRoleService.getRoleDropdownOptions(schoolId);
+      const portalType = req.query.portalType as PortalType | undefined;
+      const data = await OrgRoleService.getRolesByPortalType(
+        schoolId,
+        portalType,
+      );
       return res.status(200).json({ success: true, data });
     },
   );

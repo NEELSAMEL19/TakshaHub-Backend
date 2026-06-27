@@ -7,12 +7,12 @@ export class OrgMemberController {
   static addMember = asyncHandler(async (req: Request, res: Response) => {
     const schoolId = req.user?.schoolId;
     if (!schoolId)
-      throw new AppError("Unauthorized context scope missing.", 401);
+      throw new AppError("Unauthorized: School context missing.", 401);
 
     const data = await OrgMemberService.addMember(schoolId, req.body);
     return res.status(201).json({
       success: true,
-      message: `${req.body.portalType} member successfully configured into organizational pool.`,
+      message: `Member added successfully as '${req.body.roleName}' (${req.body.portalType}).`,
       data,
     });
   });
@@ -20,42 +20,67 @@ export class OrgMemberController {
   static getAllMembers = asyncHandler(async (req: Request, res: Response) => {
     const schoolId = req.user?.schoolId;
     if (!schoolId)
-      throw new AppError("Unauthorized context scope missing.", 401);
+      throw new AppError("Unauthorized: School context missing.", 401);
 
     const data = await OrgMemberService.getAllMembers(schoolId);
     return res.status(200).json({ success: true, count: data.length, data });
   });
 
-  static updateMember = asyncHandler(async (req: Request, res: Response) => {
+  static getMemberById = asyncHandler(async (req: Request, res: Response) => {
     const schoolId = req.user?.schoolId;
     if (!schoolId)
-      throw new AppError("Unauthorized context scope missing.", 401);
+      throw new AppError("Unauthorized: School context missing.", 401);
 
-    const { email, ...updateFields } = req.body;
+    const { id } = req.params;
+    const data = await OrgMemberService.getMemberById(
+      schoolId,
+      Array.isArray(id) ? id[0] : id,
+    );
+    return res.status(200).json({ success: true, data });
+  });
+
+  static updateMember = asyncHandler(async (req: Request, res: Response) => {
+    console.log("req.body", req.body); // 👈 add this
+
+    const schoolId = req.user?.schoolId;
+    if (!schoolId)
+      throw new AppError("Unauthorized: School context missing.", 401);
+
+    const { id, ...updateFields } = req.body;
+    console.log("id", id); // 👈 add this
+
     const data = await OrgMemberService.updateMember(
       schoolId,
-      email,
+      id,
       updateFields,
     );
 
     return res.status(200).json({
       success: true,
-      message:
-        "Member credentials and profile configurations updated successfully.",
+      message: "Member updated successfully.",
       data,
     });
   });
 
   static deleteMember = asyncHandler(async (req: Request, res: Response) => {
     const schoolId = req.user?.schoolId;
-    if (!schoolId)
-      throw new AppError("Unauthorized context scope missing.", 401);
+    const requestingUserId = req.user?.id ? BigInt(req.user.id) : undefined; // ✅ add this
 
-    await OrgMemberService.deleteMember(schoolId, req.body.email);
+    if (!schoolId)
+      throw new AppError("Unauthorized: School context missing.", 401);
+
+    if (!requestingUserId)
+      throw new AppError("Unauthorized: User context missing.", 401);
+
+    await OrgMemberService.deleteMember(
+      schoolId,
+      req.body.email,
+      requestingUserId,
+    ); // ✅ pass it
+
     return res.status(200).json({
       success: true,
-      message: "User account safely cleared from system registries.",
+      message: "Member deleted successfully.",
     });
   });
-  
 }

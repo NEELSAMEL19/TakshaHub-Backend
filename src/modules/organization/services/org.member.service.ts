@@ -1,10 +1,30 @@
 import prisma from "../../../config/prisma.js";
 import { AppError } from "../../../common/middlewares/AppError.js";
 import { serializeBigInt } from "../../../common/utils/utils.js";
-import { PortalType } from "@prisma/client"; // Ensure strict enum compliance
+import { PortalType } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 export class OrgMemberService {
+  private static readonly SALT_ROUNDS = 10;
+
+  private static readonly memberSelect = {
+    id: true,
+    fullName: true,
+    email: true,
+    phoneNumber: true,
+    schoolId: true,
+    isVerified: true,
+    isActive: true,
+    createdAt: true,
+    updatedAt: true,
+    role: {
+      select: {
+        name: true,
+        portalType: true,
+      },
+    },
+  };
+
   /**
    * CREATE: Adds a member to the school roster
    */
@@ -36,13 +56,15 @@ export class OrgMemberService {
     });
     if (!matchedRole)
       throw new AppError(
-        `Role profile configuration '${data.roleName}' not found for portal '${data.portalType}'.`,
+        `Role '${data.roleName}' not found for portal '${data.portalType}'.`,
         404,
       );
 
     // 4. Securely hash the cleartext password
-    const saltRounds = 10;
-    const encryptedPassword = await bcrypt.hash(data.password, saltRounds);
+    const encryptedPassword = await bcrypt.hash(
+      data.password,
+      this.SALT_ROUNDS,
+    );
 
     // 5. Save to Database
     const newUser = await prisma.user.create({
@@ -56,6 +78,7 @@ export class OrgMemberService {
         isVerified: false,
         isActive: true,
       },
+      select: this.memberSelect, // ✅ no passwordHash in response
     });
 
     return serializeBigInt(newUser);
@@ -69,49 +92,59 @@ export class OrgMemberService {
 
     const members = await prisma.user.findMany({
       where: { schoolId: sId },
-      include: {
-        role: { select: { name: true, portalType: true } },
-      },
+      select: this.memberSelect, // ✅ no passwordHash in response
       orderBy: { createdAt: "desc" },
     });
 
     return serializeBigInt(members);
   }
 
+  static async getMemberById(schoolId: string | bigint, id: string) {
+    const sId = BigInt(schoolId);
+
+    const user = await prisma.user.findUnique({
+      where: { id: BigInt(id) },
+      select: this.memberSelect,
+    });
+
+    if (!user || user.schoolId !== sId)
+      throw new AppError("Member not found.", 404);
+
+    return serializeBigInt(user);
+  }
+
   /**
    * UPDATE: Modifies any core field, shifts roles, or performs password resets
-   * Matches the exact input payload structure as addMember
    */
-  static async updateMember(
-    schoolId: string | bigint,
-    email: string,
-    data: any,
-  ) {
+  static async updateMember(schoolId: string | bigint, id: string, data: any) {
     const sId = BigInt(schoolId);
 
     // 1. Fetch user with their current role relationship
     const user = await prisma.user.findUnique({
-      where: { email_schoolId: { email, schoolId: sId } },
+      where: { id: BigInt(id) }, // 👈 id only
       include: { role: true },
     });
 
-    if (!user)
-      throw new AppError("Target member account context not found.", 404);
+    // verify belongs to this school
+    if (!user || user.schoolId !== sId)
+      throw new AppError("Member not found.", 404);
 
     const updatePayload: any = {};
     if (data.fullName) updatePayload.fullName = data.fullName;
+    if (data.email) updatePayload.email = data.email;
     if (data.phoneNumber) updatePayload.phoneNumber = data.phoneNumber;
     if (data.isActive !== undefined) updatePayload.isActive = data.isActive;
 
-    // Securely update password if passed from the form
+    // Securely update password if passed
     if (data.password) {
-      const saltRounds = 10;
-      updatePayload.passwordHash = await bcrypt.hash(data.password, saltRounds);
+      updatePayload.passwordHash = await bcrypt.hash(
+        data.password,
+        this.SALT_ROUNDS,
+      );
     }
 
-    // 2. Resolve Role ID using the exact same lookup logic as Add Member
+    // 2. Resolve Role ID using same lookup logic as addMember
     if (data.roleName) {
-      // Fallback to current role's portalType if not explicitly changed in the edit payload
       const resolvedPortalType = (
         data.portalType ? data.portalType.toUpperCase() : user.role.portalType
       ) as PortalType;
@@ -128,16 +161,18 @@ export class OrgMemberService {
 
       if (!matchedRole)
         throw new AppError(
-          `Role profile options '${data.roleName}' do not exist for portal type '${resolvedPortalType}'.`,
+          `Role '${data.roleName}' not found for portal '${resolvedPortalType}'.`,
           404,
         );
+
       updatePayload.roleId = matchedRole.id;
     }
 
-    // 3. Commit changes to the User record
+    // 3. Commit changes
     const updatedUser = await prisma.user.update({
       where: { id: user.id },
       data: updatePayload,
+      select: this.memberSelect,
     });
 
     return serializeBigInt(updatedUser);
@@ -146,18 +181,25 @@ export class OrgMemberService {
   /**
    * DELETE: Drops a member profile permanently
    */
-  static async deleteMember(schoolId: string | bigint, email: string) {
+  static async deleteMember(
+    schoolId: string | bigint,
+    email: string,
+    requestingUserId: bigint, // ✅ add this
+  ) {
     const sId = BigInt(schoolId);
 
     const user = await prisma.user.findUnique({
       where: { email_schoolId: { email, schoolId: sId } },
     });
-    if (!user)
-      throw new AppError("Target member profile record not found.", 404);
 
-    await prisma.user.delete({
-      where: { id: user.id },
-    });
+    if (!user) throw new AppError("Member not found.", 404);
+
+    // ✅ Block self-delete
+    if (user.id === requestingUserId) {
+      throw new AppError("You cannot delete your own account.", 403);
+    }
+
+    await prisma.user.delete({ where: { id: user.id } });
 
     return { deleted: true };
   }
