@@ -58,7 +58,10 @@ export class OrgRoleController {
       throw new AppError("Unauthorized: School context missing.", 401);
 
     const { id } = req.params;
-    const data = await OrgRoleService.getRoleById(schoolId, id);
+    const data = await OrgRoleService.getRoleById(
+      schoolId,
+      Array.isArray(id) ? id[0] : id,
+    );
 
     return res.status(200).json({ success: true, data });
   });
