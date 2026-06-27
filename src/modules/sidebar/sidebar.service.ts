@@ -1,3 +1,4 @@
+// sidebar.service.ts
 import prisma from "../../config/prisma.js";
 import { buildSidebar } from "./sidebar.builder.js";
 import type { RolePermissionWithPermission } from "../../common/utils/mapPermission.js";
@@ -10,14 +11,25 @@ export const sidebarService = {
   async getSidebar(user: SidebarUser) {
     const role = await prisma.role.findUnique({
       where: { id: user.roleId },
-      select: { portalType: true },
+      select: {
+        portalType: true,
+        permissions: {
+          include: { permission: true },
+        },
+      },
     });
 
-    const rolePermissions = await prisma.rolePermission.findMany({
-      where: { roleId: user.roleId },
-      include: { permission: true },
-    });
+    console.log("role →", JSON.stringify(role, null, 2)); // add this
+    console.log("portalType →", role?.portalType); // add this
+    console.log("rolePermissions →", role?.permissions); // add this
 
-    return buildSidebar(role?.portalType ?? null, rolePermissions);
+    const portalType = role?.portalType ?? null;
+    const rolePermissions = (role?.permissions ??
+      []) as RolePermissionWithPermission[];
+
+    const skipPermissionCheck =
+      portalType === "TEACHER" || portalType === "STUDENT";
+
+    return buildSidebar(portalType, rolePermissions, { skipPermissionCheck });
   },
 };
