@@ -61,6 +61,7 @@ CREATE TABLE "Permission" (
     "id" BIGSERIAL NOT NULL,
     "module" VARCHAR(100) NOT NULL,
     "feature" VARCHAR(100) NOT NULL,
+    "portalType" "PortalType" NOT NULL,
     "label" VARCHAR(255),
     "order" INTEGER NOT NULL DEFAULT 0,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -76,6 +77,8 @@ CREATE TABLE "RolePermission" (
     "canCreate" BOOLEAN NOT NULL DEFAULT false,
     "canUpdate" BOOLEAN NOT NULL DEFAULT false,
     "canDelete" BOOLEAN NOT NULL DEFAULT false,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "updatedBy" BIGINT,
 
     CONSTRAINT "RolePermission_pkey" PRIMARY KEY ("roleId","permissionId")
 );
@@ -126,7 +129,10 @@ CREATE UNIQUE INDEX "Role_schoolId_name_portalType_key" ON "Role"("schoolId", "n
 CREATE INDEX "Permission_module_idx" ON "Permission"("module");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Permission_module_feature_key" ON "Permission"("module", "feature");
+CREATE INDEX "Permission_portalType_idx" ON "Permission"("portalType");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Permission_module_feature_portalType_key" ON "Permission"("module", "feature", "portalType");
 
 -- CreateIndex
 CREATE INDEX "RolePermission_roleId_idx" ON "RolePermission"("roleId");
@@ -160,6 +166,9 @@ ALTER TABLE "RolePermission" ADD CONSTRAINT "RolePermission_roleId_fkey" FOREIGN
 
 -- AddForeignKey
 ALTER TABLE "RolePermission" ADD CONSTRAINT "RolePermission_permissionId_fkey" FOREIGN KEY ("permissionId") REFERENCES "Permission"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "RolePermission" ADD CONSTRAINT "RolePermission_updatedBy_fkey" FOREIGN KEY ("updatedBy") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Class" ADD CONSTRAINT "Class_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
