@@ -4,14 +4,6 @@ import type { PortalType } from "@prisma/client";
 
 const adminStaffMenuItems: MenuItem[] = [
   {
-    id: "details",
-    label: "Details",
-    path: "/details",
-    module: "Organization",
-    feature: "details",
-    group: "Organization",
-  },
-  {
     id: "role",
     label: "Role",
     path: "/role",
