@@ -1,3 +1,4 @@
+
 export interface MenuItem {
   id: string;
   label: string;
@@ -7,8 +8,5 @@ export interface MenuItem {
   group: string;
 }
 
-export interface SidebarResponse {
-  [group: string]: {
-    [key: string]: string;
-  };
-}
+// Strict type — group -> itemId -> label
+export type SidebarResponse = Record<string, Record<string, string>>;

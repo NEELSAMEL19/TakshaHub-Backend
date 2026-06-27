@@ -1,9 +1,12 @@
 import app from "./app.js";
+import { validateRegistries } from "./common/utils/validateRegistries.js";
 import validate from "./config/validate.js";
 
-const PORT = Number(validate.PORT ?? 3030) 
-const HOST = "0.0.0.0"
+const PORT = Number(validate.PORT ?? 3030);
+const HOST = "0.0.0.0";
 
-app.listen(PORT,HOST,()=>{
-    console.log(`Server is running on PORT ${PORT}`)
-})
+validateRegistries();
+
+app.listen(PORT, HOST, () => {
+  console.log(`Server is running on PORT ${PORT}`);
+});

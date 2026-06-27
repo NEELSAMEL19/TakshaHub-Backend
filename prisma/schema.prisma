@@ -1,3 +1,5 @@
+// schema.prisma
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -7,148 +9,125 @@ datasource db {
 }
 
 model User {
-  id           BigInt  @id @default(autoincrement())
-  fullName     String  @db.VarChar(255)
-  email        String  @db.VarChar(255)
-  passwordHash String  @db.VarChar(255)
-  phoneNumber  String? @db.VarChar(20)
+  id           BigInt    @id @default(autoincrement())
+  fullName     String    @db.VarChar(255)
+  email        String    @db.VarChar(255)
+  passwordHash String    @db.VarChar(255)
+  phoneNumber  String?   @db.VarChar(20)
+  schoolId     BigInt
+  roleId       BigInt
+  school       School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  role         Role      @relation(fields: [roleId], references: [id])
+  isVerified   Boolean   @default(false)
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
 
-  schoolId BigInt
-  roleId   BigInt
-
-  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  role   Role   @relation(fields: [roleId], references: [id])
-
-  isVerified Boolean @default(false)
-  isActive   Boolean @default(true)
-
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
-
-  @@index([schoolId])
-  @@index([roleId])
+  rolePermissionsUpdated RolePermission[] @relation("UpdatedByUser")
 
   @@unique([email, schoolId])
+  @@index([schoolId])
+  @@index([roleId])
 }
 
 model School {
-  id BigInt @id @default(autoincrement())
-
-  name        String @db.VarChar(255)
+  id          BigInt     @id @default(autoincrement())
+  name        String     @db.VarChar(255)
   type        SchoolType
   board       SchoolBoard
-  city        String @db.VarChar(100)
-  state       String @db.VarChar(100)
-  website     String? @db.VarChar(255)
-  udiseNumber String @unique @db.VarChar(50)
-
-  isVerified Boolean @default(false)
-  isActive   Boolean @default(true)
+  city        String     @db.VarChar(100)
+  state       String     @db.VarChar(100)
+  website     String?    @db.VarChar(255)
+  udiseNumber String     @unique @db.VarChar(50)
+  isVerified  Boolean    @default(false)
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  deletedAt   DateTime?
 
   users   User[]
   roles   Role[]
   classes Class[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  deletedAt DateTime?
 }
 
 model Role {
-  id BigInt @id @default(autoincrement())
-
-  schoolId BigInt
-
-  name String @db.VarChar(100)
-  portalType  PortalType
-
-  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  id         BigInt     @id @default(autoincrement())
+  schoolId   BigInt
+  name       String     @db.VarChar(100)
+  portalType PortalType
+  school     School     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
 
   users       User[]
   permissions RolePermission[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 
   @@unique([schoolId, name, portalType])
   @@index([schoolId])
 }
 
 model Permission {
-  id BigInt @id @default(autoincrement())
-
-  module  String @db.VarChar(100)
-  feature String @db.VarChar(100)
-  label   String? @db.VarChar(255)
-
-  order   Int      @default(0)
+  id         BigInt     @id @default(autoincrement())
+  module     String     @db.VarChar(100)
+  feature    String     @db.VarChar(100)
+  portalType PortalType // ✅ NEW: ties permission to a specific portal
+  label      String?    @db.VarChar(255)
+  order      Int        @default(0)
+  createdAt  DateTime   @default(now())
 
   rolePermissions RolePermission[]
 
-  createdAt DateTime @default(now())
-
-  @@unique([module, feature])
+  @@unique([module, feature, portalType]) // ✅ changed from [module, feature]
   @@index([module])
+  @@index([portalType])
 }
 
 model RolePermission {
   roleId       BigInt
   permissionId BigInt
+  canRead      Boolean  @default(false)
+  canCreate    Boolean  @default(false)
+  canUpdate    Boolean  @default(false)
+  canDelete    Boolean  @default(false)
+  updatedAt    DateTime @updatedAt     // ✅ NEW: audit trail
+  updatedBy    BigInt?                 // ✅ NEW: who changed it
 
-  canRead   Boolean @default(false)
-  canCreate Boolean @default(false)
-  canUpdate Boolean @default(false)
-  canDelete Boolean @default(false)
-
-  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  role          Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission    Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  updatedByUser User?      @relation("UpdatedByUser", fields: [updatedBy], references: [id])
 
   @@id([roleId, permissionId])
-
   @@index([roleId])
   @@index([permissionId])
 }
 
 model Class {
-  id BigInt @id @default(autoincrement())
-
-  schoolId BigInt
-
-  name String @db.VarChar(50)
-
-  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-
-  sections Section[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-    deletedAt DateTime?
-
+  id        BigInt    @id @default(autoincrement())
+  schoolId  BigInt
+  name      String    @db.VarChar(50)
+  school    School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  sections  Section[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
   @@unique([schoolId, name])
   @@index([schoolId])
 }
 
 model Section {
-  id BigInt @id @default(autoincrement())
-
-  classId BigInt
-
-  name String @db.VarChar(20)
-
-  class Class @relation(fields: [classId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-    deletedAt DateTime?
-
+  id        BigInt    @id @default(autoincrement())
+  classId   BigInt
+  name      String    @db.VarChar(20)
+  class     Class     @relation(fields: [classId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
   @@unique([classId, name])
   @@index([classId])
 }
-
-
 
 enum PortalType {
   ADMIN

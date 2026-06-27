@@ -1,43 +1,33 @@
+// menu.registry.ts
 import type { MenuItem } from "./sidebar.types.js";
 import type { PortalType } from "@prisma/client";
 
-// ─── Shared Admin + Staff Registry ───
-// Both ADMIN and STAFF have access to the same pool of menus.
-// ADMIN bypasses permission checks and sees everything.
-// STAFF is filtered by RolePermission.canRead.
-
 const adminStaffMenuItems: MenuItem[] = [
-
-
   {
     id: "details",
-    label: "details",
+    label: "Details",
     path: "/details",
     module: "Organization",
     feature: "details",
     group: "Organization",
   },
-
   {
     id: "role",
-    label: "role",
+    label: "Role",
     path: "/role",
     module: "Organization",
     feature: "role",
     group: "Organization",
   },
-  
   {
     id: "team",
-    label: "team",
+    label: "Team",
     path: "/team",
     module: "Organization",
     feature: "team",
     group: "Organization",
-  }
+  },
 ];
-
-// ─── Teacher Registry (separate from admin/staff) ───
 
 const teacherMenuItems: MenuItem[] = [
   {
@@ -82,8 +72,6 @@ const teacherMenuItems: MenuItem[] = [
   },
 ];
 
-// ─── Student Registry (separate from admin/staff) ───
-
 const studentMenuItems: MenuItem[] = [
   {
     id: "dashboard",
@@ -119,20 +107,20 @@ const studentMenuItems: MenuItem[] = [
   },
 ];
 
-// ─── Registry map: ADMIN and STAFF both share the same registry ───
-
 export const MENU_REGISTRY: Record<PortalType, MenuItem[]> = {
-  ADMIN: adminStaffMenuItems,  // same registry as STAFF
-  STAFF: adminStaffMenuItems,  // same registry as ADMIN (filters by permissions)
+  ADMIN: adminStaffMenuItems,
+  STAFF: adminStaffMenuItems,
   TEACHER: teacherMenuItems,
   STUDENT: studentMenuItems,
 };
 
-// ─── Helper: get registry for a specific role ───
+export const VALID_STAFF_PERMISSIONS = new Set(
+  adminStaffMenuItems
+    .filter((item) => item.module && item.feature)
+    .map((item) => `${item.module}:${item.feature}`),
+);
 
 export function getMenuRegistry(role: PortalType | null): MenuItem[] {
-  if (!role || !(role in MENU_REGISTRY)) {
-    return adminStaffMenuItems; // fallback to admin/staff registry
-  }
+  if (!role || !(role in MENU_REGISTRY)) return adminStaffMenuItems;
   return MENU_REGISTRY[role];
 }
