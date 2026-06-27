@@ -18,19 +18,9 @@ router.post(
   OrgRoleController.createRole,
 );
 
-router.get(
-  "/",
-  authMiddleware,
-  isAdmin,
-  OrgRoleController.getRolesForDropdown,
-);
+router.get("/all", authMiddleware, isAdmin, OrgRoleController.getAllRoles);
 
-router.get(
-  "/all",
-  authMiddleware,
-  isAdmin,
-  OrgRoleController.getAllRoles,
-);
+router.get("/:id", authMiddleware, isAdmin, OrgRoleController.getRoleById);
 
 router.put(
   "/update_role",

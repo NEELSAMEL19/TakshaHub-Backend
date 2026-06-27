@@ -1,3 +1,4 @@
+// org.role.controller.ts
 import type { Request, Response } from "express";
 import { asyncHandler } from "../../../common/utils/utils.js";
 import { OrgRoleService } from "../services/org.role.service.js";
@@ -5,99 +6,94 @@ import { AppError } from "../../../common/middlewares/AppError.js";
 
 export class OrgRoleController {
   static createRole = asyncHandler(async (req: Request, res: Response) => {
-    // Guaranteed to exist and be an ADMIN because of your middleware pipeline
-    const schoolId = req.user!.schoolId;
+    const schoolId = req.user?.schoolId;
+    const updatedBy = req.user?.id ? BigInt(req.user.id) : undefined;
+    if (!schoolId)
+      throw new AppError("Unauthorized: School context missing.", 401);
 
-    if (!schoolId) {
-      throw new AppError(
-        "Unauthorized: School identification context missing.",
-        401,
-      );
-    }
-
-    const { name, portalType } = req.body;
-
+    const { name, portalType, permissions } = req.body;
     const result = await OrgRoleService.createRole({
       schoolId,
       name,
       portalType,
+      permissions,
+      updatedBy,
     });
 
     return res.status(201).json({
       success: true,
-      message: "Role created successfully with default system permissions.",
+      message: "Role created successfully.",
       data: result,
     });
   });
 
-  static getRolesForDropdown = asyncHandler(
-    async (req: Request, res: Response) => {
-      const schoolId = req.user?.schoolId;
-
-      if (!schoolId) {
-        throw new AppError(
-          "Unauthorized: School identification context missing.",
-          401,
-        );
-      }
-
-      const dropdownOptions =
-        await OrgRoleService.getRoleDropdownOptions(schoolId);
-
-      return res.status(200).json({
-        success: true,
-        data: dropdownOptions,
-      });
-    },
-  );
-
-  static getAllRoles = asyncHandler(async (req: Request, res: Response) => {
-    const schoolId = req.user?.schoolId;
-    if (!schoolId) {
-      throw new AppError("Unauthorized: School identification context missing.", 401);
-    }
-
-    const rolesList = await OrgRoleService.getAllRoles(schoolId);
-
-    return res.status(200).json({
-      success: true,
-      count: rolesList.length,
-      data: rolesList,
-    });
-  });
-  
   static updateRole = asyncHandler(async (req: Request, res: Response) => {
     const schoolId = req.user?.schoolId;
-    if (!schoolId) throw new AppError("Unauthorized context.", 401);
+    const updatedBy = req.user?.id ? BigInt(req.user.id) : undefined;
+    if (!schoolId)
+      throw new AppError("Unauthorized: School context missing.", 401);
 
-    const { oldName, newName, portalType, permissions } = req.body;
-
+    const { oldName, newName, oldPortalType, newPortalType, permissions } =
+      req.body;
     const result = await OrgRoleService.updateRole(
       schoolId,
       oldName,
       newName,
-      portalType,
+      oldPortalType,
+      newPortalType,
+      updatedBy,
       permissions,
     );
 
     return res.status(200).json({
       success: true,
-      message: `Role '${oldName}' successfully updated.`,
+      message: `Role '${oldName}' updated successfully.`,
       data: result,
     });
   });
 
+  static getRoleById = asyncHandler(async (req: Request, res: Response) => {
+    const schoolId = req.user?.schoolId;
+    if (!schoolId)
+      throw new AppError("Unauthorized: School context missing.", 401);
+
+    const { id } = req.params;
+    const data = await OrgRoleService.getRoleById(schoolId, id);
+
+    return res.status(200).json({ success: true, data });
+  });
+
+  static getRolesForDropdown = asyncHandler(
+    async (req: Request, res: Response) => {
+      const schoolId = req.user?.schoolId;
+      if (!schoolId)
+        throw new AppError("Unauthorized: School context missing.", 401);
+
+      const data = await OrgRoleService.getRoleDropdownOptions(schoolId);
+      return res.status(200).json({ success: true, data });
+    },
+  );
+
+  static getAllRoles = asyncHandler(async (req: Request, res: Response) => {
+    const schoolId = req.user?.schoolId;
+    if (!schoolId)
+      throw new AppError("Unauthorized: School context missing.", 401);
+
+    const data = await OrgRoleService.getAllRoles(schoolId);
+    return res.status(200).json({ success: true, count: data.length, data });
+  });
+
   static deleteRole = asyncHandler(async (req: Request, res: Response) => {
     const schoolId = req.user?.schoolId;
-    if (!schoolId) throw new AppError("Unauthorized context.", 401);
+    if (!schoolId)
+      throw new AppError("Unauthorized: School context missing.", 401);
 
     const { name, portalType } = req.body;
-
     await OrgRoleService.deleteRole(schoolId, name, portalType);
 
     return res.status(200).json({
       success: true,
-      message: `Role '${name}' and its permissions were permanently deleted.`,
+      message: `Role '${name}' deleted successfully.`,
     });
   });
 }
