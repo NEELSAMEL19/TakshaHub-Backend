@@ -11,6 +11,8 @@ router.use(authMiddleware, isAdmin); // Secure entire sub-routing layer globally
 router.post("/create", validate(CreateClassWithSectionsSchema), ManagementClassController.createClass);
 router.get("/all", ManagementClassController.getAllClasses);
 router.get("/:classId", ManagementClassController.getClassById);
+router.get("/:classId/sections", ManagementClassController.getSectionsByClassId);
+router.get("/dropdown", ManagementClassController.getClassesDropdown);
 router.put("/update", validate(UpdateClassSchema), ManagementClassController.updateClass);
 router.delete("/delete", validate(DeleteClassSchema), ManagementClassController.deleteClass);
 

@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import { asyncHandler } from "../../../common/utils/utils.js";
-import { ManagementClassService } from "../service/managemet.class.service.js";
+import { ManagementClassService } from "../service/management.class.service.js";
 import { AppError } from "../../../common/middlewares/AppError.js";
 
 export class ManagementClassController {
@@ -51,6 +51,39 @@ export class ManagementClassController {
       data: result,
     });
   });
+
+  static getClassesDropdown = asyncHandler(
+    async (req: Request, res: Response) => {
+      const schoolId = req.user?.schoolId;
+      if (!schoolId) throw new AppError("Unauthorized context.", 401);
+
+      const data = await ManagementClassService.getClassesForDropdown(schoolId);
+
+      return res.status(200).json({
+        success: true,
+        data,
+      });
+    },
+  );
+
+  static getSectionsByClassId = asyncHandler(
+    async (req: Request, res: Response) => {
+      const schoolId = req.user?.schoolId;
+      if (!schoolId) throw new AppError("Unauthorized context.", 401);
+
+      const classId = req.params.classId as string;
+      const data = await ManagementClassService.getSectionsByClassId(
+        schoolId,
+        classId,
+      );
+
+      return res.status(200).json({
+        success: true,
+        count: data.length,
+        data,
+      });
+    },
+  );
 
   static updateClass = asyncHandler(async (req: Request, res: Response) => {
     const schoolId = req.user?.schoolId;

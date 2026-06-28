@@ -1,8 +1,10 @@
 import { Router } from "express";
-import calssRouter from "./routes/managemet.class.routes.js";
+import classRouter from "./routes/managemet.class.routes.js";
+import studentRouter from "./routes/management.student.routes.js";
 
 const managementModuleRouter = Router();
 
-managementModuleRouter.use("/class", calssRouter);
+managementModuleRouter.use("/class", classRouter);
+managementModuleRouter.use("/student", studentRouter);
 
 export default managementModuleRouter;

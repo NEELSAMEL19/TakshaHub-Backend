@@ -88,6 +88,19 @@ export class ManagementClassService {
 
     return serializeBigInt(targetClass);
   }
+
+  static async getClassesForDropdown(schoolId: string | bigint) {
+    const sId = BigInt(schoolId);
+
+    const classes = await prisma.class.findMany({
+      where: { schoolId: sId },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    });
+
+    return serializeBigInt(classes);
+  }
+  
   /**
    * UPDATE: Renames a class. No-ops if the name is unchanged.
    */
@@ -126,6 +139,30 @@ export class ManagementClassService {
     });
 
     return serializeBigInt(updated);
+  }
+
+  static async getSectionsByClassId(
+    schoolId: string | bigint,
+    classId: string | bigint,
+  ) {
+    const sId = BigInt(schoolId);
+    const cId = BigInt(classId);
+
+    const targetClass = await prisma.class.findFirst({
+      where: { id: cId, schoolId: sId },
+    });
+
+    if (!targetClass) {
+      throw new AppError("Class not found.", 404);
+    }
+
+    const sections = await prisma.section.findMany({
+      where: { classId: cId },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    });
+
+    return serializeBigInt(sections);
   }
 
   /**
