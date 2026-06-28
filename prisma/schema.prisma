@@ -25,6 +25,7 @@ model User {
   deletedAt    DateTime?
 
   rolePermissionsUpdated RolePermission[] @relation("UpdatedByUser")
+  enrollments StudentEnrollment[] @relation("StudentEnrollments")
 
   @@unique([email, schoolId])
   @@index([schoolId])
@@ -49,6 +50,7 @@ model School {
   users   User[]
   roles   Role[]
   classes Class[]
+  enrollments StudentEnrollment[]
 }
 
 model Role {
@@ -112,6 +114,8 @@ model Class {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
+  enrollments StudentEnrollment[] // ✅ add this
+
   @@unique([schoolId, name])
   @@index([schoolId])
 }
@@ -125,8 +129,31 @@ model Section {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
+  enrollments StudentEnrollment[] // ✅ add this
+
   @@unique([classId, name])
   @@index([classId])
+}
+
+model StudentEnrollment {
+  id        BigInt   @id @default(autoincrement())
+  studentId BigInt
+  classId   BigInt
+  sectionId BigInt
+  schoolId  BigInt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  student Student User    @relation("StudentEnrollments", fields: [studentId], references: [id], onDelete: Cascade)
+  class   Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
+  section Section @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  school  School  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, classId]) // ✅ one student → one class only
+  @@index([schoolId])
+  @@index([classId])
+  @@index([sectionId])
+  @@index([studentId])
 }
 
 enum PortalType {

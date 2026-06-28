@@ -2,10 +2,7 @@ import prisma from "../../../config/prisma.js";
 import { AppError } from "../../../common/middlewares/AppError.js";
 import { serializeBigInt } from "../../../common/utils/utils.js";
 
-export class OrgClassService {
-  /**
-   * CREATE: Adds a class and mappings for its starting sections
-   */
+export class ManagementClassService {
   static async createClassWithSections(
     schoolId: string | bigint,
     className: string,
@@ -13,25 +10,26 @@ export class OrgClassService {
   ) {
     const sId = BigInt(schoolId);
     const formattedClassName = className.trim();
-
-    const existingClass = await prisma.class.findUnique({
-      where: { schoolId_name: { schoolId: sId, name: formattedClassName } },
-    });
-
-    if (existingClass) {
-      throw new AppError(
-        `Class '${formattedClassName}' already exists in this school.`,
-        409,
-      );
-    }
+    const safeSections = Array.isArray(sections) ? sections : [];
 
     const result = await prisma.$transaction(async (tx) => {
+      const existingClass = await tx.class.findUnique({
+        where: { schoolId_name: { schoolId: sId, name: formattedClassName } },
+      });
+
+      if (existingClass) {
+        throw new AppError(
+          `Class '${formattedClassName}' already exists in this school.`,
+          409,
+        );
+      }
+
       const newClass = await tx.class.create({
         data: { schoolId: sId, name: formattedClassName },
       });
 
       await tx.section.createMany({
-        data: sections.map((sectionName) => ({
+        data: safeSections.map((sectionName) => ({
           classId: newClass.id,
           name: sectionName.trim(),
         })),
@@ -43,12 +41,11 @@ export class OrgClassService {
       });
     });
 
-    // 🔥 FIXED: Wrap the final transaction output before returning to the controller
     return serializeBigInt(result);
   }
 
   /**
-   * READ: Fetches all classes with their related sections included
+   * READ: Fetches all classes with their sections, ordered alphabetically.
    */
   static async getAllClasses(schoolId: string | bigint) {
     const sId = BigInt(schoolId);
@@ -66,8 +63,33 @@ export class OrgClassService {
     return serializeBigInt(classes);
   }
 
+  static async getClassById(
+    schoolId: string | bigint,
+    classId: string | bigint,
+  ) {
+    const sId = BigInt(schoolId);
+    const cId = BigInt(classId);
+
+    const targetClass = await prisma.class.findFirst({
+      where: {
+        id: cId,
+        schoolId: sId, // ✅ scoped to school — prevents cross-school access
+      },
+      include: {
+        sections: {
+          orderBy: { name: "asc" },
+        },
+      },
+    });
+
+    if (!targetClass) {
+      throw new AppError(`Class not found.`, 404);
+    }
+
+    return serializeBigInt(targetClass);
+  }
   /**
-   * UPDATE: Renames a class standard name smoothly
+   * UPDATE: Renames a class. No-ops if the name is unchanged.
    */
   static async updateClass(
     schoolId: string | bigint,
@@ -86,13 +108,16 @@ export class OrgClassService {
       throw new AppError(`Class '${formattedOld}' not found.`, 404);
     }
 
-    if (formattedOld !== formattedNew) {
-      const nameTaken = await prisma.class.findUnique({
-        where: { schoolId_name: { schoolId: sId, name: formattedNew } },
-      });
-      if (nameTaken) {
-        throw new AppError(`Class '${formattedNew}' already exists.`, 409);
-      }
+    if (formattedOld === formattedNew) {
+      return serializeBigInt(targetClass);
+    }
+
+    const nameTaken = await prisma.class.findUnique({
+      where: { schoolId_name: { schoolId: sId, name: formattedNew } },
+    });
+
+    if (nameTaken) {
+      throw new AppError(`Class '${formattedNew}' already exists.`, 409);
     }
 
     const updated = await prisma.class.update({
@@ -104,7 +129,7 @@ export class OrgClassService {
   }
 
   /**
-   * DELETE: Removes a class and cascades through its sections transactionally
+   * DELETE: Removes a class. Sections are dropped automatically via cascade.
    */
   static async deleteClass(schoolId: string | bigint, className: string) {
     const sId = BigInt(schoolId);
@@ -118,17 +143,7 @@ export class OrgClassService {
       throw new AppError(`Class '${formattedName}' not found.`, 404);
     }
 
-    await prisma.$transaction(async (tx) => {
-      // 1. Manually clean up downstream section rows first to respect foreign constraints safely
-      await tx.section.deleteMany({
-        where: { classId: targetClass.id },
-      });
-
-      // 2. Drop parent class configuration record
-      await tx.class.delete({
-        where: { id: targetClass.id },
-      });
-    });
+    await prisma.class.delete({ where: { id: targetClass.id } });
 
     return { deleted: true };
   }
