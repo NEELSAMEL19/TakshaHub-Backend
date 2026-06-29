@@ -26,6 +26,16 @@ export class OrgMemberController {
     return res.status(200).json({ success: true, count: data.length, data });
   });
 
+  static getMemberById = asyncHandler(async (req: Request, res: Response) => {
+    const schoolId = req.user?.schoolId;
+    if (!schoolId)
+      throw new AppError("Unauthorized context scope missing.", 401);
+
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const data = await OrgMemberService.getMemberById(schoolId, id);
+    return res.status(200).json({ success: true, data });
+  });
+
   static updateMember = asyncHandler(async (req: Request, res: Response) => {
     const schoolId = req.user?.schoolId;
     if (!schoolId)
@@ -37,7 +47,6 @@ export class OrgMemberController {
       email,
       updateFields,
     );
-
     return res.status(200).json({
       success: true,
       message:
@@ -57,5 +66,4 @@ export class OrgMemberController {
       message: "User account safely cleared from system registries.",
     });
   });
-  
 }

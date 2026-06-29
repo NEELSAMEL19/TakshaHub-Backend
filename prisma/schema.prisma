@@ -1,5 +1,3 @@
-// schema.prisma
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -24,7 +22,11 @@ model User {
   updatedAt    DateTime  @updatedAt
   deletedAt    DateTime?
 
-  rolePermissionsUpdated RolePermission[] @relation("UpdatedByUser")
+  rolePermissionsUpdated RolePermission[]    @relation("UpdatedByUser")
+  enrollments            StudentEnrollment[] @relation("StudentEnrollments")
+  teacherAssignments     TeacherAssignment[] @relation("TeacherAssignments")
+  studentAttendance      StudentAttendance[] @relation("StudentAttendance")
+  teacherAttendance      TeacherAttendance[] @relation("TeacherAttendance")
 
   @@unique([email, schoolId])
   @@index([schoolId])
@@ -32,23 +34,28 @@ model User {
 }
 
 model School {
-  id          BigInt     @id @default(autoincrement())
-  name        String     @db.VarChar(255)
+  id          BigInt      @id @default(autoincrement())
+  name        String      @db.VarChar(255)
   type        SchoolType
   board       SchoolBoard
-  city        String     @db.VarChar(100)
-  state       String     @db.VarChar(100)
-  website     String?    @db.VarChar(255)
-  udiseNumber String     @unique @db.VarChar(50)
-  isVerified  Boolean    @default(false)
-  isActive    Boolean    @default(true)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  city        String      @db.VarChar(100)
+  state       String      @db.VarChar(100)
+  website     String?     @db.VarChar(255)
+  udiseNumber String      @unique @db.VarChar(50)
+  isVerified  Boolean     @default(false)
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
   deletedAt   DateTime?
 
-  users   User[]
-  roles   Role[]
-  classes Class[]
+  users              User[]
+  roles              Role[]
+  classes            Class[]
+  subjects           Subject[]
+  enrollments        StudentEnrollment[]
+  teacherAssignments TeacherAssignment[]
+  studentAttendance  StudentAttendance[]
+  teacherAttendance  TeacherAttendance[]
 }
 
 model Role {
@@ -71,14 +78,14 @@ model Permission {
   id         BigInt     @id @default(autoincrement())
   module     String     @db.VarChar(100)
   feature    String     @db.VarChar(100)
-  portalType PortalType // ✅ NEW: ties permission to a specific portal
+  portalType PortalType
   label      String?    @db.VarChar(255)
   order      Int        @default(0)
   createdAt  DateTime   @default(now())
 
   rolePermissions RolePermission[]
 
-  @@unique([module, feature, portalType]) // ✅ changed from [module, feature]
+  @@unique([module, feature, portalType])
   @@index([module])
   @@index([portalType])
 }
@@ -90,8 +97,8 @@ model RolePermission {
   canCreate    Boolean  @default(false)
   canUpdate    Boolean  @default(false)
   canDelete    Boolean  @default(false)
-  updatedAt    DateTime @updatedAt     // ✅ NEW: audit trail
-  updatedBy    BigInt?                 // ✅ NEW: who changed it
+  updatedAt    DateTime @updatedAt
+  updatedBy    BigInt?
 
   role          Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
   permission    Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
@@ -112,6 +119,10 @@ model Class {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
+  enrollments        StudentEnrollment[]
+  teacherAssignments TeacherAssignment[]
+  studentAttendance  StudentAttendance[]
+
   @@unique([schoolId, name])
   @@index([schoolId])
 }
@@ -125,8 +136,121 @@ model Section {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
+  enrollments        StudentEnrollment[]
+  teacherAssignments TeacherAssignment[]
+  studentAttendance  StudentAttendance[]
+
   @@unique([classId, name])
   @@index([classId])
+}
+
+model Subject {
+  id        BigInt   @id @default(autoincrement())
+  schoolId  BigInt
+  name      String   @db.VarChar(100)
+  school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  teacherAssignments TeacherAssignment[]
+
+  @@unique([schoolId, name])
+  @@index([schoolId])
+}
+
+model StudentEnrollment {
+  id        BigInt   @id @default(autoincrement())
+  studentId BigInt
+  classId   BigInt
+  sectionId BigInt
+  schoolId  BigInt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  student User    @relation("StudentEnrollments", fields: [studentId], references: [id], onDelete: Cascade)
+  class   Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
+  section Section @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  school  School  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, classId])
+  @@index([schoolId])
+  @@index([classId])
+  @@index([sectionId])
+  @@index([studentId])
+}
+
+model TeacherAssignment {
+  id        BigInt   @id @default(autoincrement())
+  teacherId BigInt
+  classId   BigInt
+  sectionId BigInt
+  subjectId BigInt
+  schoolId  BigInt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  teacher User    @relation("TeacherAssignments", fields: [teacherId], references: [id], onDelete: Cascade)
+  class   Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
+  section Section @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  school  School  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@unique([teacherId, classId, sectionId, subjectId])
+  @@index([schoolId])
+  @@index([teacherId])
+  @@index([classId])
+  @@index([sectionId])
+  @@index([subjectId])
+}
+
+model StudentAttendance {
+  id        BigInt           @id @default(autoincrement())
+  studentId BigInt
+  classId   BigInt
+  sectionId BigInt
+  schoolId  BigInt
+  date      DateTime         @db.Date
+  status    AttendanceStatus
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  student User    @relation("StudentAttendance", fields: [studentId], references: [id], onDelete: Cascade)
+  class   Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
+  section Section @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  school  School  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, date])
+  @@index([schoolId])
+  @@index([classId])
+  @@index([sectionId])
+  @@index([studentId])
+  @@index([date])
+}
+
+model TeacherAttendance {
+  id        BigInt           @id @default(autoincrement())
+  teacherId BigInt
+  schoolId  BigInt
+  date      DateTime         @db.Date
+  status    AttendanceStatus
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  teacher User   @relation("TeacherAttendance", fields: [teacherId], references: [id], onDelete: Cascade)
+  school  School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@unique([teacherId, date])
+  @@index([schoolId])
+  @@index([teacherId])
+  @@index([date])
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  HALF_DAY
+  HOLIDAY
 }
 
 enum PortalType {
