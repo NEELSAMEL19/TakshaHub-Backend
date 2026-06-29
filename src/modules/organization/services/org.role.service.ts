@@ -3,7 +3,7 @@ import prisma from "../../../config/prisma.js";
 import { AppError } from "../../../common/middlewares/AppError.js";
 import { serializeBigInt } from "../../../common/utils/utils.js";
 import { PortalType } from "@prisma/client";
-import { VALID_STAFF_PERMISSIONS } from "../../sidebar/menu.registry.js";
+
 import {
   buildValidPermissionSet,
   getAllowedActionsMap,
@@ -270,14 +270,17 @@ export class OrgRoleService {
     return serializeBigInt(role);
   }
 
-  static async getRoleDropdownOptions(schoolId: string | bigint) {
-    const id = BigInt(schoolId);
+  static async getRolesByPortal(
+    schoolId: string | bigint,
+    portalType: PortalType,
+  ) {
+    const sId = BigInt(schoolId);
     const roles = await prisma.role.findMany({
-      where: { schoolId: id },
-      select: { name: true },
+      where: { schoolId: sId, portalType },
       orderBy: { name: "asc" },
+      select: { id: true, name: true },
     });
-    return roles.map((role) => ({ label: role.name, value: role.name }));
+    return serializeBigInt(roles);
   }
 
   static async getAllRoles(schoolId: string | bigint) {
