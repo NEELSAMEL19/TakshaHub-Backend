@@ -97,7 +97,7 @@ export class OrgRoleController {
 
       const roles = data.map((role: { id: string; name: string }) => ({
         label: role.name,
-        value: role.id,
+        value: role.name,
       }));
 
       return res
