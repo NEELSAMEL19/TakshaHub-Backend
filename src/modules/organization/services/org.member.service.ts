@@ -1,17 +1,28 @@
 import prisma from "../../../config/prisma.js";
 import { AppError } from "../../../common/middlewares/AppError.js";
 import { serializeBigInt } from "../../../common/utils/utils.js";
-import { PortalType } from "@prisma/client"; // Ensure strict enum compliance
+import { PortalType } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
+const safeMemberSelect = {
+  id: true,
+  fullName: true,
+  email: true,
+  phoneNumber: true,
+  schoolId: true,
+  roleId: true,
+  isVerified: true,
+  isActive: true,
+  createdAt: true,
+  updatedAt: true,
+  deletedAt: true,
+  role: { select: { name: true, portalType: true } },
+};
+
 export class OrgMemberService {
-  /**
-   * CREATE: Adds a member to the school roster
-   */
   static async addMember(schoolId: string | bigint, data: any) {
     const sId = BigInt(schoolId);
 
-    // 1. Enforce unique multi-tenant constraints
     const existingUser = await prisma.user.findUnique({
       where: { email_schoolId: { email: data.email, schoolId: sId } },
     });
@@ -21,10 +32,8 @@ export class OrgMemberService {
         409,
       );
 
-    // 2. Safe string-to-enum casting for PortalType
     const upperPortalType = data.portalType?.toUpperCase() as PortalType;
 
-    // 3. Resolve Role ID via string name mapping lookup
     const matchedRole = await prisma.role.findUnique({
       where: {
         schoolId_name_portalType: {
@@ -40,11 +49,8 @@ export class OrgMemberService {
         404,
       );
 
-    // 4. Securely hash the cleartext password
-    const saltRounds = 10;
-    const encryptedPassword = await bcrypt.hash(data.password, saltRounds);
+    const encryptedPassword = await bcrypt.hash(data.password, 10);
 
-    // 5. Save to Database
     const newUser = await prisma.user.create({
       data: {
         schoolId: sId,
@@ -56,32 +62,37 @@ export class OrgMemberService {
         isVerified: false,
         isActive: true,
       },
+      select: safeMemberSelect,
     });
 
     return serializeBigInt(newUser);
   }
 
-  /**
-   * READ: Fetches all members for a specific school context
-   */
   static async getAllMembers(schoolId: string | bigint) {
     const sId = BigInt(schoolId);
 
     const members = await prisma.user.findMany({
       where: { schoolId: sId },
-      include: {
-        role: { select: { name: true, portalType: true } },
-      },
+      select: safeMemberSelect,
       orderBy: { createdAt: "desc" },
     });
 
     return serializeBigInt(members);
   }
 
-  /**
-   * UPDATE: Modifies any core field, shifts roles, or performs password resets
-   * Matches the exact input payload structure as addMember
-   */
+  static async getMemberById(schoolId: string | bigint, id: string) {
+    const sId = BigInt(schoolId);
+
+    const member = await prisma.user.findUnique({
+      where: { id: BigInt(id), schoolId: sId },
+      select: safeMemberSelect,
+    });
+
+    if (!member) throw new AppError("Member not found.", 404);
+
+    return serializeBigInt(member);
+  }
+
   static async updateMember(
     schoolId: string | bigint,
     email: string,
@@ -89,7 +100,6 @@ export class OrgMemberService {
   ) {
     const sId = BigInt(schoolId);
 
-    // 1. Fetch user with their current role relationship
     const user = await prisma.user.findUnique({
       where: { email_schoolId: { email, schoolId: sId } },
       include: { role: true },
@@ -103,15 +113,11 @@ export class OrgMemberService {
     if (data.phoneNumber) updatePayload.phoneNumber = data.phoneNumber;
     if (data.isActive !== undefined) updatePayload.isActive = data.isActive;
 
-    // Securely update password if passed from the form
     if (data.password) {
-      const saltRounds = 10;
-      updatePayload.passwordHash = await bcrypt.hash(data.password, saltRounds);
+      updatePayload.passwordHash = await bcrypt.hash(data.password, 10);
     }
 
-    // 2. Resolve Role ID using the exact same lookup logic as Add Member
     if (data.roleName) {
-      // Fallback to current role's portalType if not explicitly changed in the edit payload
       const resolvedPortalType = (
         data.portalType ? data.portalType.toUpperCase() : user.role.portalType
       ) as PortalType;
@@ -134,18 +140,15 @@ export class OrgMemberService {
       updatePayload.roleId = matchedRole.id;
     }
 
-    // 3. Commit changes to the User record
     const updatedUser = await prisma.user.update({
       where: { id: user.id },
       data: updatePayload,
+      select: safeMemberSelect,
     });
 
     return serializeBigInt(updatedUser);
   }
 
-  /**
-   * DELETE: Drops a member profile permanently
-   */
   static async deleteMember(schoolId: string | bigint, email: string) {
     const sId = BigInt(schoolId);
 
@@ -155,9 +158,7 @@ export class OrgMemberService {
     if (!user)
       throw new AppError("Target member profile record not found.", 404);
 
-    await prisma.user.delete({
-      where: { id: user.id },
-    });
+    await prisma.user.delete({ where: { id: user.id } });
 
     return { deleted: true };
   }
