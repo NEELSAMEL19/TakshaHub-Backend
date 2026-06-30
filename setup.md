@@ -155,3 +155,107 @@
 
     app.use(errorHandler)---> add this app.ts after all routes in the end
 17. 
+
+
+
+
+
+
+
+
+----------------------Passwords------------------
+Gmail 
+Email:- neelsamel3@gmail.com
+Password:- Gancodepati23@
+Email:- neelsamel3@gmail.com
+Password:- 
+Email:- neelsamel69@gmail.com
+Password:- 
+Email:- neelsamell369@gmail.com
+Password:- Iamcomingforyou23@
+Email:- neelsamel26@gmail.com
+Password:- 
+Email:- neelsamel3@gmail.com
+Password:- 
+Email:- neelsamel3@gmail.com
+Password:- 
+Email:- neelsamel3@gmail.com
+Password:- 
+
+Social Accounts
+Instagram
+Insta_id:-_neel_samel_
+Password:- Gancodepati23@
+
+Twitter
+Email:neelsamel369@gmail.com
+Password:- Gancodepati23@
+
+Education 
+Masai School
+Email:- neelsamel3@gmail.com
+Password:- Gancodepati23@
+
+
+Finance 
+Grow
+Email:- neelsamel26@gmail.com
+Password:- Gancodepati23@
+
+EPFO
+UAN:- 101957461060
+Password:- Gancodepati23@
+
+State Bank 
+userId:- ASHOKSAMEL
+Password:- Welcometomubai23@
+
+Entertainment 
+Netflix
+Email:- neelsamel26@gmail.com
+Password:- Gancodepati23@
+
+Official
+Firebase
+neelsamel369@gmail.com
+
+LinkedIn
+neelsamel3@gmail.com
+Gancodepati23@
+
+Github
+neelsamel3@gmail.com
+Gancodepati23@
+
+Leetcode
+Emaill:- neelsamel369@gmail.com
+Password:- Gancodepati23@
+
+npm 
+UserName:- dream-big
+Emaill:- neelsamel369@gmail.com
+Password:- Gancodepati23@
+
+Hostinger ---> get domain
+connect with gituhub
+
+Miro
+Emaill:- neelsamel369@gmail.com
+
+
+Apply jobs.
+
+Accenture
+https://www.accenture.com/in-en/careers/jobsearch
+
+Amozon
+https://www.amazon.jobs
+
+Google
+https://www.google.com/about/careers/applications/jobs/results
+
+Cutshort
+
+Wellfound
+
+instahyre
