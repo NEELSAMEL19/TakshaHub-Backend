@@ -4,11 +4,19 @@ import { ManagementClassService } from "../service/management.class.service.js";
 import { AppError } from "../../../common/middlewares/AppError.js";
 
 export class ManagementClassController {
+  // -----------------------------------------------------------------------
+  // CLASS + SECTIONS (unified)
+  // -----------------------------------------------------------------------
+
   static createClass = asyncHandler(async (req: Request, res: Response) => {
     const schoolId = req.user?.schoolId;
     if (!schoolId) throw new AppError("Unauthorized context.", 401);
 
     const { className, sections } = req.body;
+    if (!className || typeof className !== "string") {
+      throw new AppError("Class name is required.", 400);
+    }
+
     const result = await ManagementClassService.createClassWithSections(
       schoolId,
       className,
@@ -66,39 +74,46 @@ export class ManagementClassController {
     },
   );
 
-  static getSectionsByClassId = asyncHandler(
-    async (req: Request, res: Response) => {
-      const schoolId = req.user?.schoolId;
-      if (!schoolId) throw new AppError("Unauthorized context.", 401);
-
-      const classId = req.params.classId as string;
-      const data = await ManagementClassService.getSectionsByClassId(
-        schoolId,
-        classId,
-      );
-
-      return res.status(200).json({
-        success: true,
-        count: data.length,
-        data,
-      });
-    },
-  );
-
+  /**
+   * Single endpoint to rename a class AND sync its sections in one request.
+   *
+   * Body shape:
+   * {
+   *   "className": "Class 10",
+   *   "sections": [
+   *     { "id": "123", "name": "A" },   // existing section -> rename
+   *     { "name": "D" }                  // no id -> create new section
+   *     // any existing section NOT included here gets deleted
+   *   ]
+   * }
+   *
+   * To update only the class name without touching sections, omit
+   * `sections` entirely from the body.
+   */
   static updateClass = asyncHandler(async (req: Request, res: Response) => {
     const schoolId = req.user?.schoolId;
     if (!schoolId) throw new AppError("Unauthorized context.", 401);
 
-    const { oldClassName, newClassName } = req.body;
-    const result = await ManagementClassService.updateClass(
+    const { classId } = req.params;
+    if (!classId || Array.isArray(classId)) {
+      throw new AppError("Invalid class ID.", 400);
+    }
+
+    const { className, sections } = req.body;
+    if (!className || typeof className !== "string") {
+      throw new AppError("Class name is required.", 400);
+    }
+
+    const result = await ManagementClassService.updateClassWithSections(
       schoolId,
-      oldClassName,
-      newClassName,
+      classId,
+      className,
+      sections,
     );
 
     return res.status(200).json({
       success: true,
-      message: `Class '${oldClassName}' renamed to '${newClassName}' successfully.`,
+      message: `Class updated successfully.`,
       data: result,
     });
   });
@@ -107,12 +122,16 @@ export class ManagementClassController {
     const schoolId = req.user?.schoolId;
     if (!schoolId) throw new AppError("Unauthorized context.", 401);
 
-    const { className } = req.body;
-    await ManagementClassService.deleteClass(schoolId, className);
+    const { classId } = req.params;
+    if (!classId || Array.isArray(classId)) {
+      throw new AppError("Invalid class ID.", 400);
+    }
+
+    await ManagementClassService.deleteClass(schoolId, classId);
 
     return res.status(200).json({
       success: true,
-      message: `Class '${className}' deleted successfully.`,
+      message: `Class deleted successfully.`,
     });
   });
 }
