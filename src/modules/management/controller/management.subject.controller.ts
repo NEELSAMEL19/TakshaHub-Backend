@@ -31,6 +31,21 @@ export class ManagementSubjectController {
     });
   });
 
+  static getSubjectById = asyncHandler(async (req: Request, res: Response) => {
+    const schoolId = req.user?.schoolId;
+    if (!schoolId) throw new AppError("Unauthorized context.", 401);
+
+    const { id } = req.params;
+    if (!id) throw new AppError("Subject id is required.", 400);
+
+    const data = await ManagementSubjectService.getSubjectById(schoolId, id);
+
+    return res.status(200).json({
+      success: true,
+      data,
+    });
+  });
+
   static getSubjectsForDropdown = asyncHandler(
     async (req: Request, res: Response) => {
       const schoolId = req.user?.schoolId;
