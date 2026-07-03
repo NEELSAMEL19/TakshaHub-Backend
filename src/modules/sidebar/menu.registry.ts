@@ -31,7 +31,7 @@ const adminStaffMenuItems: MenuItem[] = [
   {
     id: "attendance_student",
     label: "Student",
-    path: "/attendance/student",
+    path: "/attendance_student",
     module: "Attendance",
     feature: "student",
     group: "Attendance",
@@ -39,7 +39,7 @@ const adminStaffMenuItems: MenuItem[] = [
   {
     id: "attendance_teacher", 
     label: "Teacher",
-    path: "/attendance/teacher",
+    path: "/attendance_teacher",
     module: "Attendance",
     feature: "teacher",
     group: "Attendance",
