@@ -49,6 +49,33 @@ export class ManagementSubjectService {
   }
 
   /**
+   * READ: Get a single subject by ID
+   */
+  static async getSubjectById(schoolId: string | bigint, id: string | bigint) {
+    const sId = BigInt(schoolId);
+    const subjectId = BigInt(id);
+
+    const subject = await prisma.subject.findFirst({
+      where: { id: subjectId, schoolId: sId },
+      include: {
+        teacherAssignments: {
+          include: {
+            teacher: { select: { id: true, fullName: true } },
+            class: { select: { id: true, name: true } },
+            section: { select: { id: true, name: true } },
+          },
+        },
+      },
+    });
+
+    if (!subject) {
+      throw new AppError(`Subject not found.`, 404);
+    }
+
+    return serializeBigInt(subject);
+  }
+
+  /**
    * READ: Get subjects for dropdown (id + name only)
    */
   static async getSubjectsForDropdown(schoolId: string | bigint) {

@@ -19,6 +19,7 @@ router.post(
 );
 router.get("/all", ManagementSubjectController.getAllSubjects);
 router.get("/dropdown", ManagementSubjectController.getSubjectsForDropdown);
+router.get("/:id", ManagementSubjectController.getSubjectById);
 router.put(
   "/update",
   validate(UpdateSubjectSchema),
