@@ -9,19 +9,33 @@ export const CreateClassWithSectionsSchema = z.object({
   }),
 });
 
-export const UpdateClassSchema = z.object({
+export const UpdateClassWithSectionsSchema = z.object({
+  params: z.object({
+    classId: z.string().trim().min(1, "Class ID is required"),
+  }),
   body: z.object({
-    oldClassName: z.string().trim().min(1, "Current class name is required"),
-    newClassName: z
+    className: z
       .string()
       .trim()
-      .min(1, "New class name must be at least 1 character long")
+      .min(1, "Class name must be at least 1 character long")
       .max(50),
+    sections: z
+      .array(
+        z.object({
+          id: z.union([z.string(), z.number()]).optional(), // present -> rename existing section, absent -> create new
+          name: z
+            .string()
+            .trim()
+            .min(1, "Section name cannot be empty")
+            .max(20),
+        }),
+      )
+      .optional(), // omit entirely to leave sections untouched
   }),
 });
 
 export const DeleteClassSchema = z.object({
-  body: z.object({
-    className: z.string().trim().min(1, "Class name to delete is required"),
+  params: z.object({
+    classId: z.string().trim().min(1, "Class ID is required"),
   }),
 });
