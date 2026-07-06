@@ -1,12 +1,12 @@
 import { Router } from "express";
-import { ManagementStudentController } from "../controller/management.student.controller.js";
+import { ManagementStudentController } from "../student/management.student.controller.js";
 import { authMiddleware, isAdmin } from "../../../common/middlewares/auth.js";
 import { validate } from "../../../common/middlewares/validate.js";
 import {
   EnrollStudentSchema,
   UpdateEnrollmentSchema,
   UnenrollStudentSchema,
-} from "../schema/managemet.student.schema.js";
+} from "./managemet.student.schema.js";
 
 const router = Router();
 

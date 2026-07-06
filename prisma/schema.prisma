@@ -22,11 +22,12 @@ model User {
   updatedAt    DateTime  @updatedAt
   deletedAt    DateTime?
 
-  rolePermissionsUpdated RolePermission[]    @relation("UpdatedByUser")
-  enrollments            StudentEnrollment[] @relation("StudentEnrollments")
-  teacherAssignments     TeacherAssignment[] @relation("TeacherAssignments")
-  studentAttendance      StudentAttendance[] @relation("StudentAttendance")
-  teacherAttendance      TeacherAttendance[] @relation("TeacherAttendance")
+  rolePermissionsUpdated  RolePermission[]    @relation("UpdatedByUser")
+  enrollments             StudentEnrollment[] @relation("StudentEnrollments")
+  teacherAssignments      TeacherAssignment[] @relation("TeacherAssignments")
+  classTeacherAssignments ClassTeacher[]      @relation("ClassTeacherAssignments")
+  studentAttendance       StudentAttendance[] @relation("StudentAttendance")
+  teacherAttendance       TeacherAttendance[] @relation("TeacherAttendance")
 
   @@unique([email, schoolId])
   @@index([schoolId])
@@ -48,14 +49,15 @@ model School {
   updatedAt   DateTime    @updatedAt
   deletedAt   DateTime?
 
-  users              User[]
-  roles              Role[]
-  classes            Class[]
-  subjects           Subject[]
-  enrollments        StudentEnrollment[]
-  teacherAssignments TeacherAssignment[]
-  studentAttendance  StudentAttendance[]
-  teacherAttendance  TeacherAttendance[]
+  users                   User[]
+  roles                   Role[]
+  classes                 Class[]
+  subjects                Subject[]
+  enrollments             StudentEnrollment[]
+  teacherAssignments      TeacherAssignment[]
+  classTeacherAssignments ClassTeacher[]
+  studentAttendance       StudentAttendance[]
+  teacherAttendance       TeacherAttendance[]
 }
 
 model Role {
@@ -121,6 +123,7 @@ model Class {
 
   enrollments        StudentEnrollment[]
   teacherAssignments TeacherAssignment[]
+  classTeachers      ClassTeacher[]
   studentAttendance  StudentAttendance[]
 
   @@unique([schoolId, name])
@@ -138,6 +141,7 @@ model Section {
 
   enrollments        StudentEnrollment[]
   teacherAssignments TeacherAssignment[]
+  classTeacher       ClassTeacher?
   studentAttendance  StudentAttendance[]
 
   @@unique([classId, name])
@@ -201,6 +205,28 @@ model TeacherAssignment {
   @@index([classId])
   @@index([sectionId])
   @@index([subjectId])
+}
+
+/// Homeroom / in-charge teacher for a section — no subject involved.
+/// One class teacher per section, enforced via @@unique([sectionId]).
+model ClassTeacher {
+  id        BigInt   @id @default(autoincrement())
+  teacherId BigInt
+  classId   BigInt
+  sectionId BigInt
+  schoolId  BigInt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  teacher User    @relation("ClassTeacherAssignments", fields: [teacherId], references: [id], onDelete: Cascade)
+  class   Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
+  section Section @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  school  School  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@unique([sectionId])
+  @@index([schoolId])
+  @@index([teacherId])
+  @@index([classId])
 }
 
 model StudentAttendance {

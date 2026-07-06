@@ -1,13 +1,8 @@
 import type { Request, Response } from "express";
-import { asyncHandler } from "../../../common/utils/utils.js";
-import { ManagementSubjectService } from "../service/management.subject.service.js";
+import { asString, asyncHandler } from "../../../common/utils/utils.js";
+import { ManagementSubjectService } from "./management.subject.service.js";
 import { AppError } from "../../../common/middlewares/AppError.js";
-export const asString = (
-  value: string | string[] | undefined,
-): string | undefined => {
-  if (Array.isArray(value)) return value[0];
-  return value;
-};
+
 
 export class ManagementSubjectController {
   static createSubject = asyncHandler(async (req: Request, res: Response) => {
