@@ -1,11 +1,11 @@
 import { Router } from "express";
-import { ManagementClassController } from "../controller/managemet.class.controller.js";
+import { ManagementClassController } from "./managemet.class.controller.js";
 import { authMiddleware, isAdmin } from "../../../common/middlewares/auth.js";
 import { validate } from "../../../common/middlewares/validate.js";
 import {
   CreateClassWithSectionsSchema,
   UpdateClassWithSectionsSchema,
-} from "../schema/managemet.class.schema.js";
+} from "./managemet.class.schema.js";
 
 const router = Router();
 
