@@ -4,10 +4,6 @@ import { ManagementClassService } from "../service/management.class.service.js";
 import { AppError } from "../../../common/middlewares/AppError.js";
 
 export class ManagementClassController {
-  // -----------------------------------------------------------------------
-  // CLASS + SECTIONS (unified)
-  // -----------------------------------------------------------------------
-
   static createClass = asyncHandler(async (req: Request, res: Response) => {
     const schoolId = req.user?.schoolId;
     if (!schoolId) throw new AppError("Unauthorized context.", 401);
@@ -75,21 +71,31 @@ export class ManagementClassController {
   );
 
   /**
-   * Single endpoint to rename a class AND sync its sections in one request.
-   *
-   * Body shape:
-   * {
-   *   "className": "Class 10",
-   *   "sections": [
-   *     { "id": "123", "name": "A" },   // existing section -> rename
-   *     { "name": "D" }                  // no id -> create new section
-   *     // any existing section NOT included here gets deleted
-   *   ]
-   * }
-   *
-   * To update only the class name without touching sections, omit
-   * `sections` entirely from the body.
+   * Lightweight sections list scoped to a class, for the cascading
+   * dropdown on the enrollment form. Route param: classId.
    */
+  static getSectionsDropdown = asyncHandler(
+    async (req: Request, res: Response) => {
+      const schoolId = req.user?.schoolId;
+      if (!schoolId) throw new AppError("Unauthorized context.", 401);
+
+      const { classId } = req.params;
+      if (!classId || Array.isArray(classId)) {
+        throw new AppError("Invalid class ID.", 400);
+      }
+
+      const data = await ManagementClassService.getSectionsForDropdown(
+        schoolId,
+        classId,
+      );
+
+      return res.status(200).json({
+        success: true,
+        data,
+      });
+    },
+  );
+
   static updateClass = asyncHandler(async (req: Request, res: Response) => {
     const schoolId = req.user?.schoolId;
     if (!schoolId) throw new AppError("Unauthorized context.", 401);

@@ -13,3 +13,4 @@ export default defineConfig({
 });
 
 //  npx tsx prisma/seed.ts
+// npx tsx prisma/fix-sections.ts
