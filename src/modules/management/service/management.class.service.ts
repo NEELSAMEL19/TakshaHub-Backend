@@ -7,6 +7,15 @@ interface SectionInput {
   name: string;
 }
 
+// Splits "A,B,C" -> ["A", "B", "C"]; leaves "A" -> ["A"]. Guards against
+// section names ever being stored as one comma-joined string going forward.
+const splitSectionNames = (names: string[]): string[] => {
+  return names
+    .flatMap((n) => n.split(","))
+    .map((n) => n.trim())
+    .filter(Boolean);
+};
+
 export class ManagementClassService {
   /**
    * CREATE: Creates a class along with its initial sections in one call.
@@ -36,9 +45,10 @@ export class ManagementClassService {
         data: { schoolId: sId, name: formattedClassName },
       });
 
-      const trimmedSections = safeSections.map((s) => s.trim()).filter(Boolean);
+      // Defensively split any comma-joined names before storing, so a bad
+      // "A,B,C" row can never be created again.
+      const trimmedSections = splitSectionNames(safeSections);
 
-      // Guard against duplicate section names within the same payload
       const uniqueNames = new Set(trimmedSections.map((s) => s.toLowerCase()));
       if (uniqueNames.size !== trimmedSections.length) {
         throw new AppError("Duplicate section names in request.", 400);
@@ -64,14 +74,6 @@ export class ManagementClassService {
 
   /**
    * UPDATE: Renames a class AND syncs its sections in a single transaction.
-   *
-   * sections behavior:
-   *  - item with `id`   -> rename that existing section (if name changed)
-   *  - item without `id`-> create a new section
-   *  - any existing section NOT present in the payload -> deleted
-   *
-   * Pass `sections: undefined` to skip touching sections entirely
-   * (only rename the class).
    */
   static async updateClassWithSections(
     schoolId: string | bigint,
@@ -92,7 +94,6 @@ export class ManagementClassService {
         throw new AppError("Class not found.", 404);
       }
 
-      // --- rename class (if changed) ---
       if (targetClass.name !== formattedNew) {
         const nameTaken = await tx.class.findUnique({
           where: { schoolId_name: { schoolId: sId, name: formattedNew } },
@@ -108,9 +109,20 @@ export class ManagementClassService {
         });
       }
 
-      // --- sync sections (only if payload provided) ---
       if (sections !== undefined) {
         const safeSections = Array.isArray(sections) ? sections : [];
+
+        // Expand any item whose name contains commas into multiple items.
+        // Items with an `id` are left as single updates (renaming one
+        // existing section shouldn't silently multiply it).
+        const expandedSections: SectionInput[] = safeSections.flatMap(
+          (item) => {
+            if (item.id !== undefined) {
+              return [{ ...item, name: item.name.trim() }];
+            }
+            return splitSectionNames([item.name]).map((name) => ({ name }));
+          },
+        );
 
         const existingSections = await tx.section.findMany({
           where: { classId: targetClass.id },
@@ -120,20 +132,18 @@ export class ManagementClassService {
         );
 
         const incomingIds = new Set(
-          safeSections
+          expandedSections
             .filter((s) => s.id !== undefined)
             .map((s) => s.id!.toString()),
         );
 
-        // Duplicate name guard within payload
-        const trimmedNames = safeSections.map((s) =>
+        const trimmedNames = expandedSections.map((s) =>
           s.name.trim().toLowerCase(),
         );
         if (new Set(trimmedNames).size !== trimmedNames.length) {
           throw new AppError("Duplicate section names in request.", 400);
         }
 
-        // 1. Delete sections that exist in DB but were omitted from payload
         const toDelete = existingSections.filter(
           (s) => !incomingIds.has(s.id.toString()),
         );
@@ -143,8 +153,7 @@ export class ManagementClassService {
           });
         }
 
-        // 2. Create or update sections from payload
-        for (const item of safeSections) {
+        for (const item of expandedSections) {
           const formattedName = item.name.trim();
 
           if (item.id !== undefined) {
@@ -189,9 +198,7 @@ export class ManagementClassService {
     const classes = await prisma.class.findMany({
       where: { schoolId: sId },
       include: {
-        sections: {
-          orderBy: { name: "asc" },
-        },
+        sections: { orderBy: { name: "asc" } },
       },
       orderBy: { name: "asc" },
     });
@@ -210,14 +217,9 @@ export class ManagementClassService {
     const cId = BigInt(classId);
 
     const targetClass = await prisma.class.findFirst({
-      where: {
-        id: cId,
-        schoolId: sId, // ✅ scoped to school — prevents cross-school access
-      },
+      where: { id: cId, schoolId: sId },
       include: {
-        sections: {
-          orderBy: { name: "asc" },
-        },
+        sections: { orderBy: { name: "asc" } },
       },
     });
 
@@ -240,7 +242,47 @@ export class ManagementClassService {
       orderBy: { name: "asc" },
     });
 
-    return serializeBigInt(classes);
+    const formatted = classes.map((c) => ({
+      label: c.name,
+      value: c.id,
+    }));
+
+    return serializeBigInt(formatted);
+  }
+
+  /**
+   * READ: Lightweight list of sections (for a given class) for dropdown UI.
+   * Scoped to schoolId + classId so users can't fetch another school's
+   * sections by guessing a classId. Each section has its own distinct id.
+   */
+  static async getSectionsForDropdown(
+    schoolId: string | bigint,
+    classId: string | bigint,
+  ) {
+    const sId = BigInt(schoolId);
+    const cId = BigInt(classId);
+
+    const targetClass = await prisma.class.findFirst({
+      where: { id: cId, schoolId: sId },
+      select: { id: true },
+    });
+
+    if (!targetClass) {
+      throw new AppError("Class not found.", 404);
+    }
+
+    const sections = await prisma.section.findMany({
+      where: { classId: cId },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    });
+
+    return serializeBigInt(
+      sections.map((s) => ({
+        label: s.name,
+        value: s.id,
+      })),
+    );
   }
 
   /**

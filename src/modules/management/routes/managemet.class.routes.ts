@@ -21,8 +21,8 @@ router.post(
   ManagementClassController.createClass,
 );
 router.get("/all", ManagementClassController.getAllClasses);
-router.get("/dropdown", ManagementClassController.getClassesDropdown);
-
+router.get("/class-dropdown", ManagementClassController.getClassesDropdown);
+router.get("/section-dropdown/:classId",ManagementClassController.getSectionsDropdown);
 router.put(
   "/:classId",
   validate(UpdateClassWithSectionsSchema),
