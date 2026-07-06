@@ -29,7 +29,12 @@ export class ManagementStudentService {
       orderBy: { fullName: "asc" },
     });
 
-    return serializeBigInt(students);
+    const data = students.map((s) => ({
+      label: s.fullName,
+      value: s.id,
+    }));
+
+    return serializeBigInt(data);
   }
 
   /**
@@ -56,6 +61,42 @@ export class ManagementStudentService {
       },
       orderBy: { createdAt: "desc" },
     });
+
+    return serializeBigInt(enrollments);
+  }
+
+  /**
+   * READ: Get enrollment(s) for a single student by student ID
+   */
+  static async getEnrolledStudentById(
+    schoolId: string | bigint,
+    studentId: string | bigint,
+  ) {
+    const sId = BigInt(schoolId);
+    const stId = BigInt(studentId);
+
+    const enrollments = await prisma.studentEnrollment.findMany({
+      where: { schoolId: sId, studentId: stId },
+      include: {
+        student: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+            phoneNumber: true,
+            isVerified: true,
+            isActive: true,
+          },
+        },
+        class: { select: { id: true, name: true } },
+        section: { select: { id: true, name: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (!enrollments.length) {
+      throw new AppError("Enrollment not found for this student.", 404);
+    }
 
     return serializeBigInt(enrollments);
   }
@@ -120,6 +161,85 @@ export class ManagementStudentService {
     return serializeBigInt(
       await prisma.studentEnrollment.findUnique({
         where: { studentId_classId: { studentId: stId, classId: cId } },
+        include: {
+          student: { select: { id: true, fullName: true, email: true } },
+          class: { select: { id: true, name: true } },
+          section: { select: { id: true, name: true } },
+        },
+      }),
+    );
+  }
+
+  /**
+   * UPDATE: Change a student's class and/or section
+   */
+  static async updateStudentEnrollment(
+    schoolId: string | bigint,
+    studentId: string | bigint,
+    currentClassId: string | bigint,
+    newClassId: string | bigint,
+    newSectionId: string | bigint,
+  ) {
+    const sId = BigInt(schoolId);
+    const stId = BigInt(studentId);
+    const currentCId = BigInt(currentClassId);
+    const newCId = BigInt(newClassId);
+    const newSecId = BigInt(newSectionId);
+
+    await prisma.$transaction(async (tx) => {
+      // 1. Verify the existing enrollment belongs to this school
+      const existingEnrollment = await tx.studentEnrollment.findUnique({
+        where: {
+          studentId_classId: { studentId: stId, classId: currentCId },
+        },
+      });
+      if (!existingEnrollment || existingEnrollment.schoolId !== sId) {
+        throw new AppError("Enrollment not found.", 404);
+      }
+
+      // 2. Verify new class belongs to this school
+      const targetClass = await tx.class.findFirst({
+        where: { id: newCId, schoolId: sId },
+      });
+      if (!targetClass) throw new AppError("Class not found.", 404);
+
+      // 3. Verify new section belongs to the new class
+      const section = await tx.section.findFirst({
+        where: { id: newSecId, classId: newCId },
+      });
+      if (!section) throw new AppError("Section not found.", 404);
+
+      // 4. If class is changing, make sure student isn't already enrolled there
+      if (newCId !== currentCId) {
+        const conflict = await tx.studentEnrollment.findUnique({
+          where: {
+            studentId_classId: { studentId: stId, classId: newCId },
+          },
+        });
+        if (conflict) {
+          throw new AppError(
+            "Student is already enrolled in the target class.",
+            409,
+          );
+        }
+      }
+
+      // 5. Update — classId is part of the composite key, so this changes
+      // which row is uniquely identified; sectionId is a plain field update.
+      return tx.studentEnrollment.update({
+        where: {
+          studentId_classId: { studentId: stId, classId: currentCId },
+        },
+        data: {
+          classId: newCId,
+          sectionId: newSecId,
+        },
+      });
+    });
+
+    return serializeBigInt(
+      await prisma.studentEnrollment.findUnique({
+        where: { studentId_classId: { studentId: stId, classId: newCId } },
         include: {
           student: { select: { id: true, fullName: true, email: true } },
           class: { select: { id: true, name: true } },

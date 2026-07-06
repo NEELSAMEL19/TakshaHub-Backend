@@ -2,6 +2,12 @@ import type { Request, Response } from "express";
 import { asyncHandler } from "../../../common/utils/utils.js";
 import { ManagementSubjectService } from "../service/management.subject.service.js";
 import { AppError } from "../../../common/middlewares/AppError.js";
+export const asString = (
+  value: string | string[] | undefined,
+): string | undefined => {
+  if (Array.isArray(value)) return value[0];
+  return value;
+};
 
 export class ManagementSubjectController {
   static createSubject = asyncHandler(async (req: Request, res: Response) => {
@@ -35,7 +41,7 @@ export class ManagementSubjectController {
     const schoolId = req.user?.schoolId;
     if (!schoolId) throw new AppError("Unauthorized context.", 401);
 
-    const { id } = req.params;
+    const id = asString(req.params.id);
     if (!id) throw new AppError("Subject id is required.", 400);
 
     const data = await ManagementSubjectService.getSubjectById(schoolId, id);

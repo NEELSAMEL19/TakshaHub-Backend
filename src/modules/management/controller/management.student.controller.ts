@@ -20,14 +20,35 @@ export class ManagementStudentController {
     },
   );
 
-
-
   static getEnrolledStudents = asyncHandler(
     async (req: Request, res: Response) => {
       const schoolId = req.user?.schoolId;
       if (!schoolId) throw new AppError("Unauthorized context.", 401);
 
       const data = await ManagementStudentService.getEnrolledStudents(schoolId);
+
+      return res.status(200).json({
+        success: true,
+        count: data.length,
+        data,
+      });
+    },
+  );
+
+  static getEnrolledStudentById = asyncHandler(
+    async (req: Request, res: Response) => {
+      const schoolId = req.user?.schoolId;
+      if (!schoolId) throw new AppError("Unauthorized context.", 401);
+
+      const { studentId } = req.params;
+      if (!studentId || Array.isArray(studentId)) {
+        throw new AppError("Student id is required.", 400);
+      }
+
+      const data = await ManagementStudentService.getEnrolledStudentById(
+        schoolId,
+        studentId,
+      );
 
       return res.status(200).json({
         success: true,
@@ -55,6 +76,28 @@ export class ManagementStudentController {
       data: result,
     });
   });
+
+  static updateStudentEnrollment = asyncHandler(
+    async (req: Request, res: Response) => {
+      const schoolId = req.user?.schoolId;
+      if (!schoolId) throw new AppError("Unauthorized context.", 401);
+
+      const { studentId, currentClassId, newClassId, newSectionId } = req.body;
+      const result = await ManagementStudentService.updateStudentEnrollment(
+        schoolId,
+        studentId,
+        currentClassId,
+        newClassId,
+        newSectionId,
+      );
+
+      return res.status(200).json({
+        success: true,
+        message: "Student enrollment updated successfully.",
+        data: result,
+      });
+    },
+  );
 
   static unenrollStudent = asyncHandler(async (req: Request, res: Response) => {
     const schoolId = req.user?.schoolId;
