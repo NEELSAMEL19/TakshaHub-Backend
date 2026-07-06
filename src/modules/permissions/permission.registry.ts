@@ -52,12 +52,12 @@ const staffPermissionRegistry: PermissionModule[] = [
       },
       {
         id: "classTeacher",
-        name: "Classteacher",
+        name: "Class teacher",
         allowedActions: ["canRead", "canCreate", "canUpdate"],
       },
       {
         id: "subjectTeacher",
-        name: "Subjectteacher",
+        name: "Subject teacher",
         allowedActions: ["canRead", "canCreate", "canUpdate"],
       },
     ],
