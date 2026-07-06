@@ -83,7 +83,7 @@ const adminStaffMenuItems: MenuItem[] = [
     label: "Subject teacher",
     path: "/subject-teacher",
     module: "Management",
-    feature: "subjetcTeacher",
+    feature: "subjectTeacher",
     group: "Management",
   },
   // Organization
