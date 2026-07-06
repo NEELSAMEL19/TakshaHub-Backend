@@ -3,38 +3,11 @@ import { AppError } from "../../../common/middlewares/AppError.js";
 import { serializeBigInt } from "../../../common/utils/utils.js";
 import { PortalType } from "@prisma/client";
 
-export class ManagementTeacherService {
+export class ManagementSubjectTeacherService {
   /**
-   * READ: Get all users with portalType TEACHER
+   * READ: Get all subject-teacher assignments for a school
    */
-  static async getAvailableTeachers(schoolId: string | bigint) {
-    const sId = BigInt(schoolId);
-
-    const teachers = await prisma.user.findMany({
-      where: {
-        schoolId: sId,
-        isActive: true,
-        deletedAt: null,
-        role: { portalType: PortalType.TEACHER },
-      },
-      select: {
-        id: true,
-        fullName: true,
-        email: true,
-        phoneNumber: true,
-        isVerified: true,
-        createdAt: true,
-      },
-      orderBy: { fullName: "asc" },
-    });
-
-    return serializeBigInt(teachers);
-  }
-
-  /**
-   * READ: Get all assigned teachers with their class, section and subject
-   */
-  static async getAssignedTeachers(schoolId: string | bigint) {
+  static async getSubjectTeachers(schoolId: string | bigint) {
     const sId = BigInt(schoolId);
 
     const assignments = await prisma.teacherAssignment.findMany({
@@ -61,45 +34,33 @@ export class ManagementTeacherService {
   }
 
   /**
-   * READ: Get all assignments grouped by teacher
+   * READ: Get all subject assignments for a specific section
    */
-  static async getTeacherById(schoolId: string | bigint, teacherId: string | bigint) {
+  static async getSubjectTeachersBySection(
+    schoolId: string | bigint,
+    sectionId: string | bigint,
+  ) {
     const sId = BigInt(schoolId);
-    const tId = BigInt(teacherId);
+    const secId = BigInt(sectionId);
 
-    const teacher = await prisma.user.findFirst({
-      where: {
-        id: tId,
-        schoolId: sId,
-        deletedAt: null,
-        role: { portalType: PortalType.TEACHER },
+    const assignments = await prisma.teacherAssignment.findMany({
+      where: { schoolId: sId, sectionId: secId },
+      include: {
+        teacher: { select: { id: true, fullName: true, email: true } },
+        class: { select: { id: true, name: true } },
+        section: { select: { id: true, name: true } },
+        subject: { select: { id: true, name: true } },
       },
-      select: {
-        id: true,
-        fullName: true,
-        email: true,
-        phoneNumber: true,
-        isVerified: true,
-        isActive: true,
-        teacherAssignments: {
-          include: {
-            class: { select: { id: true, name: true } },
-            section: { select: { id: true, name: true } },
-            subject: { select: { id: true, name: true } },
-          },
-        },
-      },
+      orderBy: { subject: { name: "asc" } },
     });
 
-    if (!teacher) throw new AppError("Teacher not found.", 404);
-
-    return serializeBigInt(teacher);
+    return serializeBigInt(assignments);
   }
 
   /**
-   * CREATE: Assign a teacher to class + section + subject
+   * CREATE: Assign a teacher to teach a subject for a class + section
    */
-  static async assignTeacher(
+  static async assignSubjectTeacher(
     schoolId: string | bigint,
     teacherId: string | bigint,
     classId: string | bigint,
@@ -142,7 +103,7 @@ export class ManagementTeacherService {
       });
       if (!subject) throw new AppError("Subject not found.", 404);
 
-      // 5. Check already assigned
+      // 5. Prevent duplicate (teacher, class, section, subject) assignment
       const alreadyAssigned = await tx.teacherAssignment.findUnique({
         where: {
           teacherId_classId_sectionId_subjectId: {
@@ -160,7 +121,7 @@ export class ManagementTeacherService {
         );
       }
 
-      // 6. Assign
+      // 6. Create assignment
       return tx.teacherAssignment.create({
         data: {
           teacherId: tId,
@@ -182,9 +143,9 @@ export class ManagementTeacherService {
   }
 
   /**
-   * DELETE: Remove a teacher assignment
+   * DELETE: Remove a subject-teacher assignment
    */
-  static async unassignTeacher(
+  static async unassignSubjectTeacher(
     schoolId: string | bigint,
     teacherId: string | bigint,
     classId: string | bigint,

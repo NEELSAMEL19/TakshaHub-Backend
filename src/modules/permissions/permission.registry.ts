@@ -36,7 +36,7 @@ const staffPermissionRegistry: PermissionModule[] = [
     name: "Management",
     features: [
       {
-        id: "class", 
+        id: "class",
         name: "Class",
         allowedActions: ["canRead", "canCreate", "canUpdate", "canDelete"],
       },
@@ -51,8 +51,13 @@ const staffPermissionRegistry: PermissionModule[] = [
         allowedActions: ["canRead", "canCreate", "canUpdate"],
       },
       {
-        id: "teacher",
-        name: "Teacher",
+        id: "classTeacher",
+        name: "Classteacher",
+        allowedActions: ["canRead", "canCreate", "canUpdate"],
+      },
+      {
+        id: "subjectTeacher",
+        name: "Subjectteacher",
         allowedActions: ["canRead", "canCreate", "canUpdate"],
       },
     ],

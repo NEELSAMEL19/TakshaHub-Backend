@@ -1,8 +1,8 @@
 import { Router } from "express";
-import classRouter from "./routes/managemet.class.routes.js";
-import subjectRouter from "./routes/management.subject.routes.js";
-import studentsRouter from "./routes/management.student.routes.js";
-import teachersRouter from "./routes/management.teacher.routes.js";
+import classRouter from "./class/managemet.class.routes.js";
+import subjectRouter from "./subject/management.subject.routes.js";
+import studentsRouter from "./student/management.student.routes.js";
+import teachersRouter from "./classTeacher/management.classTeacher.routes.js";
 
 const managementModuleRouter = Router();
 

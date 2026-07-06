@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import { asyncHandler } from "../../../common/utils/utils.js";
-import { ManagementStudentService } from "../service/management.student.service.js";
+import { ManagementStudentService } from "./management.student.service.js";
 import { AppError } from "../../../common/middlewares/AppError.js";
 
 export class ManagementStudentController {

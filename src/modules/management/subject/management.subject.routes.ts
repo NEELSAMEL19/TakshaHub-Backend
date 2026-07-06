@@ -1,12 +1,12 @@
 import { Router } from "express";
-import { ManagementSubjectController } from "../controller/management.subject.controller.js";
+import { ManagementSubjectController } from "../subject/management.subject.controller.js";
 import { authMiddleware, isAdmin } from "../../../common/middlewares/auth.js";
 import { validate } from "../../../common/middlewares/validate.js";
 import {
   CreateSubjectSchema,
   UpdateSubjectSchema,
   DeleteSubjectSchema,
-} from "../schema/management.subject.schema.js";
+} from "../subject/management.subject.schema.js";
 
 const router = Router();
 
