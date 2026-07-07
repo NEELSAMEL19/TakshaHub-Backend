@@ -17,6 +17,21 @@ export class ManagementClassTeacherController {
     },
   );
 
+  static getClassTeacherById = asyncHandler(
+    async (req: Request, res: Response) => {
+      const schoolId = req.user?.schoolId;
+      if (!schoolId) throw new AppError("Unauthorized.", 401);
+
+      const id = asString(req.params.id);
+      if (!id) throw new AppError("Class teacher id is required.", 400);
+
+      const classTeacher =
+        await ManagementClassTeacherService.getClassTeacherById(schoolId, id);
+
+      res.status(200).json({ success: true, data: classTeacher });
+    },
+  );
+
   static getClassTeacherBySection = asyncHandler(
     async (req: Request, res: Response) => {
       const schoolId = req.user?.schoolId;
@@ -44,6 +59,29 @@ export class ManagementClassTeacherController {
       const classTeacher =
         await ManagementClassTeacherService.assignClassTeacher(
           schoolId,
+          teacherId,
+          classId,
+          sectionId,
+        );
+
+      res.status(200).json({ success: true, data: classTeacher });
+    },
+  );
+
+  static updateClassTeacher = asyncHandler(
+    async (req: Request, res: Response) => {
+      const schoolId = req.user?.schoolId;
+      if (!schoolId) throw new AppError("Unauthorized.", 401);
+
+      const id = asString(req.params.id);
+      if (!id) throw new AppError("Class teacher id is required.", 400);
+
+      const { teacherId, classId, sectionId } = req.body;
+
+      const classTeacher =
+        await ManagementClassTeacherService.updateClassTeacher(
+          schoolId,
+          id,
           teacherId,
           classId,
           sectionId,
