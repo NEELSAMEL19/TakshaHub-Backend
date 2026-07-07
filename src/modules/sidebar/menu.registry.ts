@@ -73,7 +73,7 @@ const adminStaffMenuItems: MenuItem[] = [
   {
     id: "classTeacher",
     label: "Class teacher",
-    path: "/class-teacher",
+    path: "/class_teacher",
     module: "Management",
     feature: "classTeacher",
     group: "Management",
@@ -81,7 +81,7 @@ const adminStaffMenuItems: MenuItem[] = [
   {
     id: "subjectTeacher",
     label: "Subject teacher",
-    path: "/subject-teacher",
+    path: "/subject_teacher",
     module: "Management",
     feature: "subjectTeacher",
     group: "Management",
