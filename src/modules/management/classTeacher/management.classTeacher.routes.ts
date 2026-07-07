@@ -4,6 +4,8 @@ import { authMiddleware, isAdmin } from "../../../common/middlewares/auth.js";
 import { validate } from "../../../common/middlewares/validate.js";
 import {
   AssignClassTeacherSchema,
+  UpdateClassTeacherSchema,
+  GetClassTeacherByIdSchema,
   UnassignClassTeacherSchema,
 } from "./management.classTeacher.schema.js";
 
@@ -25,6 +27,16 @@ router.delete(
   "/unassign/:sectionId",
   validate(UnassignClassTeacherSchema),
   ManagementClassTeacherController.unassignClassTeacher,
+);
+router.get(
+  "/:id",
+  validate(GetClassTeacherByIdSchema),
+  ManagementClassTeacherController.getClassTeacherById,
+);
+router.put(
+  "/:id",
+  validate(UpdateClassTeacherSchema),
+  ManagementClassTeacherController.updateClassTeacher,
 );
 
 export default router;
