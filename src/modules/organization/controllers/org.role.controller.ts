@@ -1,8 +1,10 @@
 // org.role.controller.ts
+import prisma from "../../../config/prisma.js";
 import type { Request, Response } from "express";
 import { asyncHandler } from "../../../common/utils/utils.js";
 import { OrgRoleService } from "../services/org.role.service.js";
 import { AppError } from "../../../common/middlewares/AppError.js";
+import { PortalType } from "@prisma/client";
 
 export class OrgRoleController {
   static createRole = asyncHandler(async (req: Request, res: Response) => {
@@ -66,17 +68,6 @@ export class OrgRoleController {
     return res.status(200).json({ success: true, data });
   });
 
-  static getRolesForDropdown = asyncHandler(
-    async (req: Request, res: Response) => {
-      const schoolId = req.user?.schoolId;
-      if (!schoolId)
-        throw new AppError("Unauthorized: School context missing.", 401);
-
-      const data = await OrgRoleService.getRoleDropdownOptions(schoolId);
-      return res.status(200).json({ success: true, data });
-    },
-  );
-
   static getAllRoles = asyncHandler(async (req: Request, res: Response) => {
     const schoolId = req.user?.schoolId;
     if (!schoolId)
@@ -85,6 +76,35 @@ export class OrgRoleController {
     const data = await OrgRoleService.getAllRoles(schoolId);
     return res.status(200).json({ success: true, count: data.length, data });
   });
+
+  static getRolesByPortal = asyncHandler(
+    async (req: Request, res: Response) => {
+      const schoolId = req.user?.schoolId;
+      if (!schoolId)
+        throw new AppError("Unauthorized: School context missing.", 401);
+
+      const { portalType } = req.query;
+      if (!portalType || typeof portalType !== "string")
+        throw new AppError("Query param 'portalType' is required.", 400);
+
+      if (!Object.values(PortalType).includes(portalType as PortalType))
+        throw new AppError(`Invalid portalType '${portalType}'.`, 400);
+
+      const data = await OrgRoleService.getRolesByPortal(
+        schoolId,
+        portalType as PortalType,
+      );
+
+      const roles = data.map((role: { id: string; name: string }) => ({
+        label: role.name,
+        value: role.name,
+      }));
+
+      return res
+        .status(200)
+        .json({ success: true, count: roles.length, data: roles });
+    },
+  );
 
   static deleteRole = asyncHandler(async (req: Request, res: Response) => {
     const schoolId = req.user?.schoolId;

@@ -1,4 +1,3 @@
-// modules/permissions/permission.registry.ts
 import type { PortalType } from "@prisma/client";
 
 export type AllowedAction = "canRead" | "canCreate" | "canUpdate" | "canDelete";
@@ -15,11 +14,6 @@ export interface PermissionModule {
   features: PermissionFeature[];
 }
 
-// ✅ This is the single source of truth
-// - Drives the permission template API
-// - Drives validation in createRole / updateRole
-// - Drives the DB seed
-
 const staffPermissionRegistry: PermissionModule[] = [
   {
     id: "Organization",
@@ -33,7 +27,75 @@ const staffPermissionRegistry: PermissionModule[] = [
       {
         id: "team",
         name: "Team",
-        allowedActions: ["canRead", "canCreate", "canUpdate"], // no delete
+        allowedActions: ["canRead", "canCreate", "canUpdate"],
+      },
+    ],
+  },
+  {
+    id: "Management",
+    name: "Management",
+    features: [
+      {
+        id: "class",
+        name: "Class",
+        allowedActions: ["canRead", "canCreate", "canUpdate", "canDelete"],
+      },
+      {
+        id: "subject",
+        name: "Subject",
+        allowedActions: ["canRead", "canCreate", "canUpdate"],
+      },
+      {
+        id: "student",
+        name: "Student",
+        allowedActions: ["canRead", "canCreate", "canUpdate"],
+      },
+      {
+        id: "classTeacher",
+        name: "Class teacher",
+        allowedActions: ["canRead", "canCreate", "canUpdate"],
+      },
+      {
+        id: "subjectTeacher",
+        name: "Subject teacher",
+        allowedActions: ["canRead", "canCreate", "canUpdate"],
+      },
+    ],
+  },
+  {
+    id: "Attendance",
+    name: "Attendance",
+    features: [
+      {
+        id: "student",
+        name: "Student",
+        allowedActions: ["canRead", "canCreate", "canUpdate", "canDelete"],
+      },
+      {
+        id: "teacher",
+        name: "Teacher",
+        allowedActions: ["canRead", "canCreate", "canUpdate"],
+      },
+    ],
+  },
+  {
+    id: "Academic",
+    name: "Academic",
+    features: [
+      {
+        id: "timetable",
+        name: "Timetable",
+        allowedActions: ["canRead", "canCreate", "canUpdate", "canDelete"],
+      },
+      {
+        id: "lessonplan",
+        name: "Lesson Plan",
+        allowedActions: ["canRead", "canCreate", "canUpdate"],
+      },
+      {
+        id: "assignment",
+        name: "Assignment",
+        allowedActions: ["canRead", "canCreate", "canUpdate"],
       },
     ],
   },

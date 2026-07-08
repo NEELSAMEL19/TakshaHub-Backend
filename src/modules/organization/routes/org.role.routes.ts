@@ -20,6 +20,8 @@ router.post(
 
 router.get("/all", authMiddleware, isAdmin, OrgRoleController.getAllRoles);
 
+router.get("/by-portal", authMiddleware, isAdmin, OrgRoleController.getRolesByPortal);
+
 router.get("/:id", authMiddleware, isAdmin, OrgRoleController.getRoleById);
 
 router.put(
