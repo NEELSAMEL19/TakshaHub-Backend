@@ -286,7 +286,11 @@ export class ManagementClassService {
   }
 
   /**
-   * DELETE: Removes a class. Sections are dropped automatically via cascade.
+   * DELETE: Removes a class. Blocked if any enrollment, assignment, or
+   * attendance history references it (Restrict FK) — those must be
+   * cleaned up or the class must be archived/soft-deleted instead.
+   * Sections cascade-delete automatically since Section -> Class is
+   * still Cascade.
    */
   static async deleteClass(
     schoolId: string | bigint,
@@ -301,6 +305,20 @@ export class ManagementClassService {
 
     if (!targetClass) {
       throw new AppError(`Class not found.`, 404);
+    }
+
+    const [enrollmentCount, assignmentCount, attendanceCount] =
+      await Promise.all([
+        prisma.studentEnrollment.count({ where: { classId: cId } }),
+        prisma.teacherAssignment.count({ where: { classId: cId } }),
+        prisma.studentAttendance.count({ where: { classId: cId } }),
+      ]);
+
+    if (enrollmentCount || assignmentCount || attendanceCount) {
+      throw new AppError(
+        "Cannot delete a class with existing enrollments, assignments, or attendance history. Archive it instead.",
+        409,
+      );
     }
 
     await prisma.class.delete({ where: { id: targetClass.id } });

@@ -1,36 +1,41 @@
 import prisma from "../../../config/prisma.js";
 import { AppError } from "../../../common/middlewares/AppError.js";
 import { serializeBigInt } from "../../../common/utils/utils.js";
+import { getActiveAcademicYearId } from "../../../common/utils/academicYear.js";
 import { AttendanceStatus, PortalType } from "@prisma/client";
 
 export class TeacherAttendanceService {
   /**
-   * READ: Get all teachers to mark attendance
+   * READ: Get roster of all teachers for a school, with attendance
+   * status for a given date, within the active academic year.
+   * status: null means not marked yet.
+   * "Teacher" = User whose Role has portalType TEACHER.
    */
   static async getTeachersForAttendance(
     schoolId: string | bigint,
     date: string,
   ) {
     const sId = BigInt(schoolId);
+    const academicYearId = await getActiveAcademicYearId(sId);
     const parsedDate = new Date(date);
 
     const teachers = await prisma.user.findMany({
       where: {
         schoolId: sId,
-        isActive: true,
-        deletedAt: null,
         role: { portalType: PortalType.TEACHER },
+        deletedAt: null,
       },
       select: { id: true, fullName: true, email: true },
       orderBy: { fullName: "asc" },
     });
 
+    // Empty roster is a valid state (e.g. no teachers yet), not an error.
     if (teachers.length === 0) {
-      throw new AppError("No teachers found.", 404);
+      return [];
     }
 
     const existingAttendance = await prisma.teacherAttendance.findMany({
-      where: { schoolId: sId, date: parsedDate },
+      where: { schoolId: sId, academicYearId, date: parsedDate },
     });
 
     const attendanceMap = new Map(
@@ -46,85 +51,53 @@ export class TeacherAttendanceService {
   }
 
   /**
-   * CREATE: Mark attendance for all teachers (bulk)
+   * TOGGLE: Single-row upsert (or delete when cycling back to unmarked).
+   * Scoped to the active academic year.
    */
-  static async markAttendance(
-    schoolId: string | bigint,
-    date: string,
-    attendance: { teacherId: bigint; status: AttendanceStatus }[],
-  ) {
-    const sId = BigInt(schoolId);
-    const parsedDate = new Date(date);
-
-    await prisma.$transaction(async (tx) => {
-      await Promise.all(
-        attendance.map((a) =>
-          tx.teacherAttendance.upsert({
-            where: {
-              teacherId_date: {
-                teacherId: BigInt(a.teacherId),
-                date: parsedDate,
-              },
-            },
-            update: { status: a.status },
-            create: {
-              teacherId: BigInt(a.teacherId),
-              schoolId: sId,
-              date: parsedDate,
-              status: a.status,
-            },
-          }),
-        ),
-      );
-    });
-
-    return { marked: true, date, total: attendance.length };
-  }
-
-  /**
-   * UPDATE: Update a single teacher attendance record
-   */
-  static async updateAttendance(
+  static async upsertAttendance(
     schoolId: string | bigint,
     teacherId: string | bigint,
     date: string,
-    status: AttendanceStatus,
+    status: AttendanceStatus | null,
   ) {
     const sId = BigInt(schoolId);
+    const academicYearId = await getActiveAcademicYearId(sId);
     const tId = BigInt(teacherId);
     const parsedDate = new Date(date);
 
-    const existing = await prisma.teacherAttendance.findUnique({
-      where: { teacherId_date: { teacherId: tId, date: parsedDate } },
+    const teacher = await prisma.user.findFirst({
+      where: {
+        id: tId,
+        schoolId: sId,
+        role: { portalType: PortalType.TEACHER },
+        deletedAt: null,
+      },
     });
+    if (!teacher) throw new AppError("Teacher not found.", 404);
 
-    if (!existing || existing.schoolId !== sId) {
-      throw new AppError("Attendance record not found.", 404);
+    if (status === null) {
+      await prisma.teacherAttendance.deleteMany({
+        where: { teacherId: tId, date: parsedDate, academicYearId },
+      });
+      return {
+        teacherId: tId.toString(),
+        date,
+        status: null,
+      };
     }
 
-    const updated = await prisma.teacherAttendance.update({
+    const updated = await prisma.teacherAttendance.upsert({
       where: { teacherId_date: { teacherId: tId, date: parsedDate } },
-      data: { status },
+      update: { status, academicYearId },
+      create: {
+        teacherId: tId,
+        schoolId: sId,
+        academicYearId,
+        date: parsedDate,
+        status,
+      },
     });
 
     return serializeBigInt(updated);
-  }
-
-  /**
-   * READ: Get attendance report by date
-   */
-  static async getAttendanceByDate(schoolId: string | bigint, date: string) {
-    const sId = BigInt(schoolId);
-    const parsedDate = new Date(date);
-
-    const records = await prisma.teacherAttendance.findMany({
-      where: { schoolId: sId, date: parsedDate },
-      include: {
-        teacher: { select: { id: true, fullName: true, email: true } },
-      },
-      orderBy: { teacher: { fullName: "asc" } },
-    });
-
-    return serializeBigInt(records);
   }
 }

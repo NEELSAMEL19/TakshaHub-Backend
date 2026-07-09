@@ -53,6 +53,7 @@ model School {
   roles                   Role[]
   classes                 Class[]
   subjects                Subject[]
+  academicYears           AcademicYear[]
   enrollments             StudentEnrollment[]
   teacherAssignments      TeacherAssignment[]
   classTeacherAssignments ClassTeacher[]
@@ -111,6 +112,35 @@ model RolePermission {
   @@index([permissionId])
 }
 
+/// A school "session" e.g. "2025-26". Enrollments, assignments, and
+/// attendance are all scoped to a year so historical data survives
+/// year-over-year rollover. Exactly one year per school should have
+/// isActive = true at a time (enforce in application logic).
+model AcademicYear {
+  id        BigInt    @id @default(autoincrement())
+  schoolId  BigInt
+  label     String    @db.VarChar(20) // e.g. "2025-26"
+  startDate DateTime  @db.Date
+  endDate   DateTime  @db.Date
+  isActive  Boolean   @default(false)
+  school    School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  enrollments        StudentEnrollment[]
+  teacherAssignments TeacherAssignment[]
+  classTeachers      ClassTeacher[]
+  studentAttendance  StudentAttendance[]
+  teacherAttendance  TeacherAttendance[]
+
+  @@unique([schoolId, label])
+  @@index([schoolId])
+  @@index([schoolId, isActive])
+}
+
+/// Class/Section are year-agnostic containers ("Class 5" persists as a
+/// concept across years). Soft-deleted rather than removed so historical
+/// enrollment/attendance rows referencing them stay resolvable.
 model Class {
   id        BigInt    @id @default(autoincrement())
   schoolId  BigInt
@@ -141,7 +171,7 @@ model Section {
 
   enrollments        StudentEnrollment[]
   teacherAssignments TeacherAssignment[]
-  classTeacher       ClassTeacher?
+  classTeacher       ClassTeacher[]
   studentAttendance  StudentAttendance[]
 
   @@unique([classId, name])
@@ -163,112 +193,128 @@ model Subject {
 }
 
 model StudentEnrollment {
-  id        BigInt   @id @default(autoincrement())
-  studentId BigInt
-  classId   BigInt
-  sectionId BigInt
-  schoolId  BigInt
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             BigInt   @id @default(autoincrement())
+  studentId      BigInt
+  classId        BigInt
+  sectionId      BigInt
+  schoolId       BigInt
+  academicYearId BigInt
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  student User    @relation("StudentEnrollments", fields: [studentId], references: [id], onDelete: Cascade)
-  class   Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
-  section Section @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-  school  School  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  student      User         @relation("StudentEnrollments", fields: [studentId], references: [id], onDelete: Cascade)
+  class        Class        @relation(fields: [classId], references: [id], onDelete: Restrict)
+  section      Section      @relation(fields: [sectionId], references: [id], onDelete: Restrict)
+  school       School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  academicYear AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
 
-  @@unique([studentId, classId])
+  // A student can only have one enrollment per class per year (covers
+  // re-enrollment/repeat scenarios across different years cleanly).
+  @@unique([studentId, classId, academicYearId])
   @@index([schoolId])
   @@index([classId])
   @@index([sectionId])
   @@index([studentId])
+  @@index([academicYearId])
 }
 
 model TeacherAssignment {
-  id        BigInt   @id @default(autoincrement())
-  teacherId BigInt
-  classId   BigInt
-  sectionId BigInt
-  subjectId BigInt
-  schoolId  BigInt
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             BigInt   @id @default(autoincrement())
+  teacherId      BigInt
+  classId        BigInt
+  sectionId      BigInt
+  subjectId      BigInt
+  schoolId       BigInt
+  academicYearId BigInt
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  teacher User    @relation("TeacherAssignments", fields: [teacherId], references: [id], onDelete: Cascade)
-  class   Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
-  section Section @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
-  school  School  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  teacher      User         @relation("TeacherAssignments", fields: [teacherId], references: [id], onDelete: Cascade)
+  class        Class        @relation(fields: [classId], references: [id], onDelete: Restrict)
+  section      Section      @relation(fields: [sectionId], references: [id], onDelete: Restrict)
+  subject      Subject      @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  school       School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  academicYear AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
 
-  @@unique([teacherId, classId, sectionId, subjectId])
+  @@unique([teacherId, classId, sectionId, subjectId, academicYearId])
   @@index([schoolId])
   @@index([teacherId])
   @@index([classId])
   @@index([sectionId])
   @@index([subjectId])
+  @@index([academicYearId])
 }
 
 /// Homeroom / in-charge teacher for a section — no subject involved.
-/// One class teacher per section, enforced via @@unique([sectionId]).
+/// One class teacher per section per year, enforced via
+/// @@unique([sectionId, academicYearId]).
 model ClassTeacher {
-  id        BigInt   @id @default(autoincrement())
-  teacherId BigInt
-  classId   BigInt
-  sectionId BigInt
-  schoolId  BigInt
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             BigInt   @id @default(autoincrement())
+  teacherId      BigInt
+  classId        BigInt
+  sectionId      BigInt
+  schoolId       BigInt
+  academicYearId BigInt
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  teacher User    @relation("ClassTeacherAssignments", fields: [teacherId], references: [id], onDelete: Cascade)
-  class   Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
-  section Section @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-  school  School  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  teacher      User         @relation("ClassTeacherAssignments", fields: [teacherId], references: [id], onDelete: Cascade)
+  class        Class        @relation(fields: [classId], references: [id], onDelete: Restrict)
+  section      Section      @relation(fields: [sectionId], references: [id], onDelete: Restrict)
+  school       School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  academicYear AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
 
-  @@unique([sectionId])
+  @@unique([sectionId, academicYearId])
   @@index([schoolId])
   @@index([teacherId])
   @@index([classId])
+  @@index([academicYearId])
 }
 
 model StudentAttendance {
-  id        BigInt           @id @default(autoincrement())
-  studentId BigInt
-  classId   BigInt
-  sectionId BigInt
-  schoolId  BigInt
-  date      DateTime         @db.Date
-  status    AttendanceStatus
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
+  id             BigInt           @id @default(autoincrement())
+  studentId      BigInt
+  classId        BigInt
+  sectionId      BigInt
+  schoolId       BigInt
+  academicYearId BigInt
+  date           DateTime         @db.Date
+  status         AttendanceStatus
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
 
-  student User    @relation("StudentAttendance", fields: [studentId], references: [id], onDelete: Cascade)
-  class   Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
-  section Section @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-  school  School  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  student      User         @relation("StudentAttendance", fields: [studentId], references: [id], onDelete: Cascade)
+  // Restrict, not Cascade: a class/section can't be deleted while
+  // attendance history references it — forces soft-delete instead.
+  class        Class        @relation(fields: [classId], references: [id], onDelete: Restrict)
+  section      Section      @relation(fields: [sectionId], references: [id], onDelete: Restrict)
+  school       School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  academicYear AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
 
   @@unique([studentId, date])
-  @@index([schoolId])
-  @@index([classId])
-  @@index([sectionId])
+  @@index([schoolId, date])
+  @@index([classId, sectionId, date])
   @@index([studentId])
-  @@index([date])
+  @@index([academicYearId])
 }
 
 model TeacherAttendance {
-  id        BigInt           @id @default(autoincrement())
-  teacherId BigInt
-  schoolId  BigInt
-  date      DateTime         @db.Date
-  status    AttendanceStatus
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
+  id             BigInt           @id @default(autoincrement())
+  teacherId      BigInt
+  schoolId       BigInt
+  academicYearId BigInt
+  date           DateTime         @db.Date
+  status         AttendanceStatus
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
 
-  teacher User   @relation("TeacherAttendance", fields: [teacherId], references: [id], onDelete: Cascade)
-  school  School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  teacher      User         @relation("TeacherAttendance", fields: [teacherId], references: [id], onDelete: Cascade)
+  school       School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  academicYear AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
 
   @@unique([teacherId, date])
-  @@index([schoolId])
-  @@index([teacherId])
-  @@index([date])
+  @@index([schoolId, date])
+  @@index([academicYearId])
 }
 
 enum AttendanceStatus {
