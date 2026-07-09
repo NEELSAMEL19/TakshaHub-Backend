@@ -83,6 +83,11 @@ const staffPermissionRegistry: PermissionModule[] = [
     name: "Academic",
     features: [
       {
+        id: "academic_year",
+        name: "Acedemic year",
+        allowedActions: ["canRead", "canCreate", "canUpdate", "canDelete"],
+      },
+      {
         id: "timetable",
         name: "Timetable",
         allowedActions: ["canRead", "canCreate", "canUpdate", "canDelete"],
