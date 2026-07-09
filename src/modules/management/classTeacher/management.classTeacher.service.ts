@@ -1,17 +1,20 @@
 import prisma from "../../../config/prisma.js";
 import { AppError } from "../../../common/middlewares/AppError.js";
 import { serializeBigInt } from "../../../common/utils/utils.js";
+import { getActiveAcademicYearId } from "../../../common/utils/academicYear.js";
 import { PortalType } from "@prisma/client";
 
 export class ManagementClassTeacherService {
   /**
-   * READ: Get all class teacher assignments for a school
+   * READ: Get all class teacher assignments for a school, for the
+   * active academic year.
    */
   static async getClassTeachers(schoolId: string | bigint) {
     const sId = BigInt(schoolId);
+    const academicYearId = await getActiveAcademicYearId(sId);
 
     const classTeachers = await prisma.classTeacher.findMany({
-      where: { schoolId: sId },
+      where: { schoolId: sId, academicYearId },
       include: {
         teacher: {
           select: {
@@ -33,7 +36,9 @@ export class ManagementClassTeacherService {
   }
 
   /**
-   * READ: Get a single class teacher assignment by its own ID
+   * READ: Get a single class teacher assignment by its own ID.
+   * Not year-scoped — an id is already unique, and admins may need to
+   * view a past year's assignment record directly.
    */
   static async getClassTeacherById(
     schoolId: string | bigint,
@@ -58,7 +63,8 @@ export class ManagementClassTeacherService {
   }
 
   /**
-   * READ: Get the class teacher for a specific section
+   * READ: Get the class teacher for a specific section, for the active
+   * academic year.
    */
   static async getClassTeacherBySection(
     schoolId: string | bigint,
@@ -66,9 +72,10 @@ export class ManagementClassTeacherService {
   ) {
     const sId = BigInt(schoolId);
     const secId = BigInt(sectionId);
+    const academicYearId = await getActiveAcademicYearId(sId);
 
     const classTeacher = await prisma.classTeacher.findFirst({
-      where: { sectionId: secId, schoolId: sId },
+      where: { sectionId: secId, schoolId: sId, academicYearId },
       include: {
         teacher: { select: { id: true, fullName: true, email: true } },
         class: { select: { id: true, name: true } },
@@ -77,14 +84,18 @@ export class ManagementClassTeacherService {
     });
 
     if (!classTeacher)
-      throw new AppError("Class teacher not found for this section.", 404);
+      throw new AppError(
+        "Class teacher not found for this section in the current academic year.",
+        404,
+      );
 
     return serializeBigInt(classTeacher);
   }
 
   /**
-   * CREATE/UPDATE: Assign (or reassign) the class teacher for a section.
-   * Upsert on sectionId — a section can only have one class teacher.
+   * CREATE/UPDATE: Assign (or reassign) the class teacher for a section,
+   * for the active academic year. Upsert on [sectionId, academicYearId] —
+   * a section can only have one class teacher per year.
    */
   static async assignClassTeacher(
     schoolId: string | bigint,
@@ -93,6 +104,7 @@ export class ManagementClassTeacherService {
     sectionId: string | bigint,
   ) {
     const sId = BigInt(schoolId);
+    const academicYearId = await getActiveAcademicYearId(sId);
     const tId = BigInt(teacherId);
     const cId = BigInt(classId);
     const secId = BigInt(sectionId);
@@ -121,15 +133,19 @@ export class ManagementClassTeacherService {
       });
       if (!section) throw new AppError("Section not found.", 404);
 
-      // 4. Upsert — replaces existing class teacher for this section if any
+      // 4. Upsert — replaces existing class teacher for this
+      // section+year if any
       return tx.classTeacher.upsert({
-        where: { sectionId: secId },
+        where: {
+          sectionId_academicYearId: { sectionId: secId, academicYearId },
+        },
         update: { teacherId: tId },
         create: {
           teacherId: tId,
           classId: cId,
           sectionId: secId,
           schoolId: sId,
+          academicYearId,
         },
         include: {
           teacher: { select: { id: true, fullName: true, email: true } },
@@ -144,8 +160,9 @@ export class ManagementClassTeacherService {
 
   /**
    * UPDATE: Change an existing class teacher assignment (by its own ID) —
-   * teacher, class, and/or section. Unlike assignClassTeacher (which is
-   * upsert-by-section), this targets a specific ClassTeacher row directly.
+   * teacher, class, and/or section. Stays within the assignment's
+   * original academic year (you don't move an assignment across years,
+   * you'd create a new one for the new year instead).
    */
   static async updateClassTeacher(
     schoolId: string | bigint,
@@ -192,14 +209,20 @@ export class ManagementClassTeacherService {
       if (!section) throw new AppError("Section not found.", 404);
 
       // 5. If section is changing, make sure the target section doesn't
-      // already have a different class teacher (sectionId is @@unique)
+      // already have a different class teacher in the SAME year as this
+      // assignment (sectionId+academicYearId is @@unique)
       if (secId !== existing.sectionId) {
         const conflict = await tx.classTeacher.findUnique({
-          where: { sectionId: secId },
+          where: {
+            sectionId_academicYearId: {
+              sectionId: secId,
+              academicYearId: existing.academicYearId,
+            },
+          },
         });
         if (conflict) {
           throw new AppError(
-            "Target section already has a class teacher assigned.",
+            "Target section already has a class teacher assigned for this academic year.",
             409,
           );
         }
@@ -225,7 +248,8 @@ export class ManagementClassTeacherService {
   }
 
   /**
-   * DELETE: Remove the class teacher assigned to a section
+   * DELETE: Remove the class teacher assigned to a section for the
+   * active academic year.
    */
   static async unassignClassTeacher(
     schoolId: string | bigint,
@@ -233,16 +257,22 @@ export class ManagementClassTeacherService {
   ) {
     const sId = BigInt(schoolId);
     const secId = BigInt(sectionId);
+    const academicYearId = await getActiveAcademicYearId(sId);
 
     const existing = await prisma.classTeacher.findUnique({
-      where: { sectionId: secId },
+      where: {
+        sectionId_academicYearId: { sectionId: secId, academicYearId },
+      },
     });
 
     if (!existing || existing.schoolId !== sId) {
-      throw new AppError("Class teacher not found.", 404);
+      throw new AppError(
+        "Class teacher not found for this section in the current academic year.",
+        404,
+      );
     }
 
-    await prisma.classTeacher.delete({ where: { sectionId: secId } });
+    await prisma.classTeacher.delete({ where: { id: existing.id } });
 
     return { deleted: true };
   }

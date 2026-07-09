@@ -131,7 +131,8 @@ export class ManagementSubjectService {
   }
 
   /**
-   * DELETE: Remove a subject
+   * DELETE: Remove a subject. Blocked if any teacher assignment
+   * (current or historical) references it.
    */
   static async deleteSubject(schoolId: string | bigint, name: string) {
     const sId = BigInt(schoolId);
@@ -143,6 +144,17 @@ export class ManagementSubjectService {
 
     if (!target) {
       throw new AppError(`Subject '${formattedName}' not found.`, 404);
+    }
+
+    const assignmentCount = await prisma.teacherAssignment.count({
+      where: { subjectId: target.id },
+    });
+
+    if (assignmentCount) {
+      throw new AppError(
+        "Cannot delete a subject with existing teacher assignment history.",
+        409,
+      );
     }
 
     await prisma.subject.delete({ where: { id: target.id } });
