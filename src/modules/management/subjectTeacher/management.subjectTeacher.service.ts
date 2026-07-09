@@ -1,9 +1,30 @@
 import prisma from "../../../config/prisma.js";
 import { AppError } from "../../../common/middlewares/AppError.js";
 import { serializeBigInt } from "../../../common/utils/utils.js";
-import { PortalType } from "@prisma/client";
+import { PortalType, type Prisma } from "@prisma/client";
+
+type TxClient = Prisma.TransactionClient;
 
 export class ManagementSubjectTeacherService {
+  /**
+   * Resolve the currently active academic year for a school.
+   * Assignments are scoped per-year, so any create/lookup that doesn't
+   * receive an explicit academicYearId falls back to this.
+   */
+  private static async getActiveAcademicYearId(
+    client: TxClient | typeof prisma,
+    schoolId: bigint,
+  ): Promise<bigint> {
+    const activeYear = await client.academicYear.findFirst({
+      where: { schoolId, isActive: true },
+      select: { id: true },
+    });
+    if (!activeYear) {
+      throw new AppError("No active academic year set for this school.", 409);
+    }
+    return activeYear.id;
+  }
+
   /**
    * READ: Get all subject-teacher assignments for a school
    */
@@ -83,7 +104,8 @@ export class ManagementSubjectTeacherService {
   }
 
   /**
-   * CREATE: Assign a teacher to teach a subject for a class + section
+   * CREATE: Assign a teacher to teach a subject for a class + section,
+   * scoped to the school's active academic year.
    */
   static async assignSubjectTeacher(
     schoolId: string | bigint,
@@ -128,25 +150,29 @@ export class ManagementSubjectTeacherService {
       });
       if (!subject) throw new AppError("Subject not found.", 404);
 
-      // 5. Prevent duplicate (teacher, class, section, subject) assignment
+      // 5. Resolve the active academic year for this school
+      const academicYearId = await this.getActiveAcademicYearId(tx, sId);
+
+      // 6. Prevent duplicate (teacher, class, section, subject, year) assignment
       const alreadyAssigned = await tx.teacherAssignment.findUnique({
         where: {
-          teacherId_classId_sectionId_subjectId: {
+          teacherId_classId_sectionId_subjectId_academicYearId: {
             teacherId: tId,
             classId: cId,
             sectionId: secId,
             subjectId: subId,
+            academicYearId,
           },
         },
       });
       if (alreadyAssigned) {
         throw new AppError(
-          "Teacher is already assigned to this class, section and subject.",
+          "Teacher is already assigned to this class, section and subject for the current academic year.",
           409,
         );
       }
 
-      // 6. Create assignment
+      // 7. Create assignment
       return tx.teacherAssignment.create({
         data: {
           teacherId: tId,
@@ -154,6 +180,7 @@ export class ManagementSubjectTeacherService {
           sectionId: secId,
           subjectId: subId,
           schoolId: sId,
+          academicYearId,
         },
         include: {
           teacher: { select: { id: true, fullName: true, email: true } },
@@ -169,7 +196,9 @@ export class ManagementSubjectTeacherService {
 
   /**
    * UPDATE: Change an existing subject-teacher assignment (by its own ID) —
-   * teacher, class, section, and/or subject.
+   * teacher, class, section, and/or subject. The assignment's academic
+   * year is left untouched — editing an assignment doesn't move it to a
+   * different year.
    */
   static async updateSubjectTeacher(
     schoolId: string | bigint,
@@ -223,7 +252,7 @@ export class ManagementSubjectTeacherService {
       if (!subject) throw new AppError("Subject not found.", 404);
 
       // 6. If the composite key is changing, make sure it doesn't collide
-      // with a different existing assignment
+      // with a different existing assignment in the same academic year
       const keyChanged =
         tId !== existing.teacherId ||
         cId !== existing.classId ||
@@ -233,23 +262,24 @@ export class ManagementSubjectTeacherService {
       if (keyChanged) {
         const conflict = await tx.teacherAssignment.findUnique({
           where: {
-            teacherId_classId_sectionId_subjectId: {
+            teacherId_classId_sectionId_subjectId_academicYearId: {
               teacherId: tId,
               classId: cId,
               sectionId: secId,
               subjectId: subId,
+              academicYearId: existing.academicYearId,
             },
           },
         });
         if (conflict) {
           throw new AppError(
-            "Teacher is already assigned to this class, section and subject.",
+            "Teacher is already assigned to this class, section and subject for this academic year.",
             409,
           );
         }
       }
 
-      // 7. Update
+      // 7. Update (academicYearId intentionally left unchanged)
       return tx.teacherAssignment.update({
         where: { id: taId },
         data: {
@@ -271,7 +301,8 @@ export class ManagementSubjectTeacherService {
   }
 
   /**
-   * DELETE: Remove a subject-teacher assignment
+   * DELETE: Remove a subject-teacher assignment for the school's active
+   * academic year.
    */
   static async unassignSubjectTeacher(
     schoolId: string | bigint,
@@ -286,13 +317,16 @@ export class ManagementSubjectTeacherService {
     const secId = BigInt(sectionId);
     const subId = BigInt(subjectId);
 
+    const academicYearId = await this.getActiveAcademicYearId(prisma, sId);
+
     const assignment = await prisma.teacherAssignment.findUnique({
       where: {
-        teacherId_classId_sectionId_subjectId: {
+        teacherId_classId_sectionId_subjectId_academicYearId: {
           teacherId: tId,
           classId: cId,
           sectionId: secId,
           subjectId: subId,
+          academicYearId,
         },
       },
     });
@@ -303,11 +337,12 @@ export class ManagementSubjectTeacherService {
 
     await prisma.teacherAssignment.delete({
       where: {
-        teacherId_classId_sectionId_subjectId: {
+        teacherId_classId_sectionId_subjectId_academicYearId: {
           teacherId: tId,
           classId: cId,
           sectionId: secId,
           subjectId: subId,
+          academicYearId,
         },
       },
     });

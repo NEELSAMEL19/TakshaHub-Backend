@@ -1,27 +1,42 @@
 import prisma from "../../../config/prisma.js";
 import { AppError } from "../../../common/middlewares/AppError.js";
 import { serializeBigInt } from "../../../common/utils/utils.js";
-import { getActiveAcademicYearId } from "../../../common/utils/academicYear.js";
+import {
+  getActiveAcademicYearId,
+  resolveAcademicYearId,
+} from "../../../common/utils/academicYear.js";
 import { AttendanceStatus } from "@prisma/client";
 
 export class StudentAttendanceService {
   /**
    * READ: Get roster for a school, optionally scoped to a class+section,
-   * with attendance status for a given date, within the active academic
+   * with attendance status for a given date, within a given academic
    * year. status: null means not marked yet.
    * classId/sectionId are optional — when omitted, returns the roster
    * across the whole school ("All" view). Each row carries its own
    * classId/sectionId so the frontend knows what context to send back
    * when toggling attendance for that student.
+   *
+   * academicYearId is optional — when omitted, defaults to the school's
+   * currently active year (same behavior as before). When provided
+   * (e.g. from a "Select Academic Year" dropdown), the roster and
+   * attendance are read from that year instead, so past/inactive years
+   * can be viewed. This method is READ-ONLY with respect to year choice —
+   * marking/toggling attendance is still restricted to the active year
+   * only, in upsertAttendance below.
    */
   static async getStudentsForAttendance(
     schoolId: string | bigint,
     classId: string | bigint | undefined,
     sectionId: string | bigint | undefined,
     date: string,
+    academicYearId?: string | bigint,
   ) {
     const sId = BigInt(schoolId);
-    const academicYearId = await getActiveAcademicYearId(sId);
+    const ayId = await resolveAcademicYearId(
+      sId,
+      academicYearId ? BigInt(academicYearId) : undefined,
+    );
     const cId = classId ? BigInt(classId) : undefined;
     const secId = sectionId ? BigInt(sectionId) : undefined;
     const parsedDate = new Date(date);
@@ -29,7 +44,7 @@ export class StudentAttendanceService {
     const enrollments = await prisma.studentEnrollment.findMany({
       where: {
         schoolId: sId,
-        academicYearId,
+        academicYearId: ayId,
         ...(cId ? { classId: cId } : {}),
         ...(secId ? { sectionId: secId } : {}),
       },
@@ -47,7 +62,7 @@ export class StudentAttendanceService {
     const existingAttendance = await prisma.studentAttendance.findMany({
       where: {
         schoolId: sId,
-        academicYearId,
+        academicYearId: ayId,
         ...(cId ? { classId: cId } : {}),
         ...(secId ? { sectionId: secId } : {}),
         date: parsedDate,
@@ -77,7 +92,9 @@ export class StudentAttendanceService {
    * Always requires a concrete classId/sectionId, since a write must
    * know exactly which enrollment context it belongs to. Scoped to the
    * active academic year — attendance can't be marked against a stale
-   * enrollment from a previous year.
+   * enrollment from a previous year. Deliberately does NOT accept an
+   * academicYearId override: past/inactive years are view-only, so
+   * historical attendance can't be accidentally edited.
    */
   static async upsertAttendance(
     schoolId: string | bigint,
@@ -150,3 +167,4 @@ export class StudentAttendanceService {
     return serializeBigInt(updated);
   }
 }
+  

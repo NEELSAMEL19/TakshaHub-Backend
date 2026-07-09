@@ -4,6 +4,14 @@ import type { PortalType } from "@prisma/client";
 const adminStaffMenuItems: MenuItem[] = [
   // Academic
   {
+    id: "academic_year",
+    label: "Academic Year",
+    path: "/academic_year",
+    module: "Academic",
+    feature: "academic_year",
+    group: "Academic",
+  },
+  {
     id: "timetable",
     label: "Timetable",
     path: "/timetable",

@@ -3,10 +3,12 @@ import { asyncHandler } from "../../common/utils/utils.js";
 import { AuthService } from "./auth.service.js";
 
 
+const isProduction = process.env.NODE_ENV === "production";
+
 const cookieOptions: CookieOptions = {
   httpOnly: true,
-  secure: true,
-  sameSite: "none",
+  secure: isProduction,
+  sameSite: isProduction ? "none" : "lax",
   maxAge: 7 * 24 * 60 * 60 * 1000,
   path: "/",
 };
@@ -72,8 +74,8 @@ export class AuthController {
   static logout = asyncHandler(async (_req: Request, res: Response) => {
     res.clearCookie("token", {
       httpOnly: true,
-      secure: true,
-      sameSite: "none",
+      secure: isProduction,
+      sameSite: isProduction ? "none" : "lax",
     });
 
     return res.status(200).json({
