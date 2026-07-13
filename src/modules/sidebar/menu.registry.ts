@@ -115,79 +115,23 @@ const adminStaffMenuItems: MenuItem[] = [
 
 const teacherMenuItems: MenuItem[] = [
   {
-    id: "dashboard",
-    label: "Dashboard",
-    path: "/dashboard",
+    id: "profile",
+    label: "Profile",
+    path: "/profile",
     module: null,
     feature: null,
-    group: "Dashboard",
-  },
-  {
-    id: "my_classes",
-    label: "My Classes",
-    path: "/my-classes",
-    module: "teaching",
-    feature: "classes",
-    group: "Teaching",
-  },
-  {
-    id: "assignments",
-    label: "Assignments",
-    path: "/assignments",
-    module: "teaching",
-    feature: "assignments",
-    group: "Teaching",
-  },
-  {
-    id: "exams",
-    label: "Exams",
-    path: "/exams",
-    module: "teaching",
-    feature: "exams",
-    group: "Teaching",
-  },
-  {
-    id: "grades",
-    label: "Grades",
-    path: "/grades",
-    module: "teaching",
-    feature: "grades",
-    group: "Teaching",
+    group: "Setting",
   },
 ];
 
 const studentMenuItems: MenuItem[] = [
   {
-    id: "dashboard",
-    label: "Dashboard",
-    path: "/dashboard",
+    id: "profile",
+    label: "Profile",
+    path: "/profile",
     module: null,
     feature: null,
-    group: "Dashboard",
-  },
-  {
-    id: "my_assignments",
-    label: "My Assignments",
-    path: "/my-assignments",
-    module: "student",
-    feature: "assignments",
-    group: "Learning",
-  },
-  {
-    id: "my_grades",
-    label: "My Grades",
-    path: "/my-grades",
-    module: "student",
-    feature: "grades",
-    group: "Learning",
-  },
-  {
-    id: "timetable",
-    label: "Timetable",
-    path: "/timetable",
-    module: "student",
-    feature: "timetable",
-    group: "Learning",
+    group: "Setting",
   },
 ];
 

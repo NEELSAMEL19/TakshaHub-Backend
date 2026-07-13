@@ -7,7 +7,7 @@ import errorHandler from "./common/middlewares/errorHandler.js";
 import router from "./routes.js";
 
 const app = express();
-
+app.set("etag", false);   // add this line
 const corsOrigins = ["https://takshahub.vercel.app", "http://localhost:3000"];
 app.use(
   cors({
