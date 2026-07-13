@@ -1,29 +1,51 @@
 import prisma from "../../../config/prisma.js";
 import { AppError } from "../../../common/middlewares/AppError.js";
 import { serializeBigInt } from "../../../common/utils/utils.js";
-import { getActiveAcademicYearId } from "../../../common/utils/academicYear.js";
+import {
+  getActiveAcademicYearId,
+  resolveAcademicYearId,
+} from "../../../common/utils/academicYear.js";
 import { AttendanceStatus, PortalType } from "@prisma/client";
 
 export class TeacherAttendanceService {
   /**
-   * READ: Get roster of all teachers for a school, with attendance
-   * status for a given date, within the active academic year.
-   * status: null means not marked yet.
-   * "Teacher" = User whose Role has portalType TEACHER.
+   * READ: Get the list of teachers for a school, with attendance status
+   * for a given date, within a given academic year. status: null means
+   * not marked yet.
+   *
+   * Unlike students, TeacherAttendance has no classId/sectionId — a
+   * teacher's attendance is a single school-wide record per day, not
+   * scoped to a class/section (that scoping lives separately, on
+   * TeacherAssignment / ClassTeacher). So there's no classId/sectionId
+   * filter here; this always returns the full teacher roster for the
+   * school.
+   *
+   * academicYearId is optional — when omitted, defaults to the school's
+   * currently active year (same behavior as before). When provided
+   * (e.g. from a "Select Academic Year" dropdown), attendance is read
+   * from that year instead, so past/inactive years can be viewed. This
+   * method is READ-ONLY with respect to year choice — marking/toggling
+   * attendance is still restricted to the active year only, in
+   * upsertAttendance below.
    */
   static async getTeachersForAttendance(
     schoolId: string | bigint,
     date: string,
+    academicYearId?: string | bigint,
   ) {
     const sId = BigInt(schoolId);
-    const academicYearId = await getActiveAcademicYearId(sId);
+    const ayId = await resolveAcademicYearId(
+      sId,
+      academicYearId ? BigInt(academicYearId) : undefined,
+    );
     const parsedDate = new Date(date);
 
     const teachers = await prisma.user.findMany({
       where: {
         schoolId: sId,
-        role: { portalType: PortalType.TEACHER },
+        isActive: true,
         deletedAt: null,
+        role: { portalType: PortalType.TEACHER },
       },
       select: { id: true, fullName: true, email: true },
       orderBy: { fullName: "asc" },
@@ -35,7 +57,11 @@ export class TeacherAttendanceService {
     }
 
     const existingAttendance = await prisma.teacherAttendance.findMany({
-      where: { schoolId: sId, academicYearId, date: parsedDate },
+      where: {
+        schoolId: sId,
+        academicYearId: ayId,
+        date: parsedDate,
+      },
     });
 
     const attendanceMap = new Map(
@@ -52,7 +78,11 @@ export class TeacherAttendanceService {
 
   /**
    * TOGGLE: Single-row upsert (or delete when cycling back to unmarked).
-   * Scoped to the active academic year.
+   * The only write operation — fires per click on the status circle.
+   * Scoped to the active academic year — attendance can't be marked
+   * against a stale/inactive year. Deliberately does NOT accept an
+   * academicYearId override: past/inactive years are view-only, so
+   * historical attendance can't be accidentally edited.
    */
   static async upsertAttendance(
     schoolId: string | bigint,
@@ -69,11 +99,17 @@ export class TeacherAttendanceService {
       where: {
         id: tId,
         schoolId: sId,
-        role: { portalType: PortalType.TEACHER },
+        isActive: true,
         deletedAt: null,
+        role: { portalType: PortalType.TEACHER },
       },
     });
-    if (!teacher) throw new AppError("Teacher not found.", 404);
+    if (!teacher) {
+      throw new AppError(
+        "Teacher not found in this school, or user is not a teacher.",
+        404,
+      );
+    }
 
     if (status === null) {
       await prisma.teacherAttendance.deleteMany({
