@@ -6,6 +6,7 @@ import permissionRoutes from "./modules/permissions/permission.routes.js";
 import attendanceRoutes from "./modules/attendance/attendance.routes.js";
 import managementRoutes from "./modules/management/management.routes.js";
 import academicRoutes from "./modules/academic/academic.routes.js";
+import settingRoutes from "./modules/setting/setting.routes.js";
 
 const router = Router();
 
@@ -16,5 +17,6 @@ router.use("/organization", organizationRoutes);
 router.use("/attendance", attendanceRoutes);
 router.use("/management", managementRoutes);
 router.use("/academic", academicRoutes);
+router.use("/setting", settingRoutes);
 
 export default router;
