@@ -1,3 +1,5 @@
+<a href="https://takshahub.onrender.com"><img align="right" src="./backend-button.svg" width="140" alt="Live Backend" /></a>
+
 ### TakshaHub Backend
 
 <em>A TypeScript and Express REST API for school administration, academic setup, user access, and attendance management.</em>
